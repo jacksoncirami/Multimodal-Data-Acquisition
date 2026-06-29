@@ -13,7 +13,7 @@ try
     delsys_client = tcpclient(delsys_ip, emg_port, 'Timeout', 10);
     fprintf('Connected to Delsys hardware successfully!\n');
 catch ME
-    error('Could not connect. Is the Delsys Trigno Control Utility app running?');
+    error('Could not connect. Is the Trigno Discover app running?');
 end
 
 %% 2. Setup the LSL Network Outlet
