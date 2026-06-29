@@ -1,19 +1,29 @@
 %% 1. Configuration & Setup
 clear; clc;
 
-% Modern Trigno Discover local loopback WebSockets URL
-discover_url = 'ws://127.0.0.1:50040'; 
+
+delsys_ip = '127.0.0.1'; % Localhost loopback
+cmd_port = 50040;        % Trigno Discover Command/Handshake Port
+emg_port = 50041;        % Trigno Discover Data Pipeline Port
 num_channels = 4;        % MATCHES YOUR 4 ACTIVE SENSORS EXACTLY
 sample_rate = 2000;      % Fixed Delsys EMG Sampling Rate (Hz)
 
-%% 2. Connect to Modern Trigno Discover WebSocket API
-fprintf('Connecting to Trigno Discover API pipeline...\n');
+%% 2. Establish Command Handshake (Forces Trigno Discover to stream)
+fprintf('Sending unlock command to Trigno Discover on Port %d...\n', cmd_port);
 try
-    % Use MATLAB's native webclient socket engine 
-    delsys_socket = webclient(discover_url);
-    fprintf('Connected to Trigno Discover successfully!\n');
+    % Connect to command port using MATLAB's native network engine
+    cmd_client = tcpclient(delsys_ip, cmd_port, 'Timeout', 5);
+    
+    % Send the mandatory Delsys trigger string to open the data pipeline
+    write(cmd_client, uint8(['START' char(13) char(10)])); 
+    pause(0.5); % Give the software a half-second to unlock the pipeline
+    
+    fprintf('Handshake successful! Connecting to EMG Data Port %d...\n', emg_port);
+    % Open the primary data reading client
+    delsys_client = tcpclient(delsys_ip, emg_port, 'Timeout', 10, 'ByteOrder', 'little-endian');
+    fprintf('Connected to Delsys hardware successfully!\n');
 catch ME
-    error('Connection refused. Make sure Trigno Discover has Live Preview graphs actively drawing on your screen! Error: %s', ME.message);
+    error('Connection failed. Make sure Trigno Discover is actively showing moving graph waves. Error: %s', ME.message);
 end
 
 %% 3. Setup the LSL Network Outlet
@@ -34,29 +44,28 @@ stop_fig = figure('Name', 'Stop Delsys Stream', 'KeyPressFcn', 'set(gcf,''Tag'',
 uicontrol('Style', 'text', 'String', 'Press ANY KEY in this window to stop streaming.', ...
           'Position', [20 30 260 40], 'FontSize', 10);
 
+bytes_per_sample = 4 * num_channels; % 4 bytes per float channel
 disp('Streaming Delsys data... Keep Trigno Discover live preview running.');
 
 try
     while ~strcmp(get(stop_fig, 'Tag'), 'stop')
-        % Read incoming messages from the web socket connection
-        if delsys_socket.NumMessagesAvailable > 0
-            raw_msg = read(delsys_socket);
+        bytes_available = delsys_client.NumBytesAvailable;
+        
+        if bytes_available >= bytes_per_sample
+            samples_to_read = floor(bytes_available / bytes_per_sample);
+            total_bytes = samples_to_read * bytes_per_sample;
             
-            % Convert Trigno Discover's modern text/binary data frame format
-            if ~isempty(raw_msg)
-                % Cast raw incoming matrix bytes to single precision float
-                float_data = typecast(raw_msg, 'single');
-                
-                % Strip system metadata header blocks if present, parse sensor matrix
-                if length(float_data) >= num_channels
-                    formatted_data = reshape(float_data(1:num_channels), num_channels, 1);
-                    
-                    % Instantly push the 4 sensor values out to LSL
-                    outlet.push_sample(formatted_data);
-                end
+            % Pull raw bytes and cast to single floats
+            raw_bytes = read(delsys_client, total_bytes, 'uint8');
+            float_data = typecast(raw_bytes, 'single');
+            formatted_data = reshape(float_data, num_channels, samples_to_read);
+            
+            % Push out to LSL network sequentially
+            for i = 1:samples_to_read
+                outlet.push_sample(formatted_data(:, i));
             end
         end
-        pause(0.0005); % Ultra-low pause pacing for high speed 2000Hz rendering
+        pause(0.001); 
     end
 catch ME
     warning('Streaming interrupted: %s', ME.message);
@@ -64,6 +73,10 @@ end
 
 %% 5. Cleanup Connection
 fprintf('Closing network sockets cleanly...\n');
-clear delsys_socket;
+if exist('cmd_client', 'var')
+    write(cmd_client, uint8(['STOP' char(13) char(10)]));
+    clear cmd_client;
+end
+clear delsys_client;
 if ishandle(stop_fig); close(stop_fig); end
 disp('Delsys stream closed.');
