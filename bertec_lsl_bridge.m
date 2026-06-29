@@ -1,34 +1,68 @@
-%% 1. Configuration & Setup (Corrected .NET Architecture)
+%% 1. Configuration & Network Setup
 clear; clc;
 
-fprintf('Loading Bertec .NET Assembly...\n');
+% Default Bertec network parameters
+bertec_ip = '127.0.0.1'; % Localhost
+bertec_port = 5000;       % Adjust to match your Bertec server port settings
+num_channels = 6;         % Fx, Fy, Fz, Mx, My, Mz
 
+fprintf('Connecting to Bertec Network Stream at %s:%d...\n', bertec_ip, bertec_port);
 try
-    % STRATEGY A: Attempt to load from the Windows Global Cache (GAC)
-    % If the Bertec installer was run on this machine, the 64-bit version 
-    % is registered in Windows. MATLAB can pull it automatically without a file path!
-    asm = NET.addAssembly('BertecDevice');
-    fprintf('Success! Loaded 64-bit Bertec Assembly from system registry.\n');
-    
-catch
-    try
-        % STRATEGY B: Look for the specific x64 (64-bit) folder path
-        % Update the directory to match your Bertec SDK location, ensuring it includes \x64\
-        bertec_dll_path = 'C:\Users\YOUR_USERNAME\Downloads\Bertec_SDK\x64\BertecDevice.dll'; 
-        
-        asm = NET.addAssembly(bertec_dll_path);
-        fprintf('Success! Loaded 64-bit Bertec Assembly from x64 folder.\n');
-        
-    catch ME
-        % If both strategies fail, display a clean diagnostic warning
-        fprintf('\n--- ARCHITECTURE ERROR DETAILS ---\n');
-        fprintf('MATLAB Architecture: %s\n', computer);
-        fprintf('Error message: %s\n', ME.message);
-        error('Could not find the 64-bit version of the Bertec DLL. Please ensure you are not using the 32-bit (x86) version.');
-    end
+    % Open a native network client connection inside MATLAB
+    bertec_client = tcpclient(bertec_ip, bertec_port, 'Timeout', 10);
+    fprintf('Connected to Bertec background server successfully!\n');
+catch ME
+    error('Could not connect. Ensure your Bertec Device Utility app is open and streaming.');
 end
 
-% Initialize the device manager object through MATLAB
-deviceManager = Bertec.Device.DeviceManager();
-deviceManager.Initialize();
-fprintf('Bertec hardware initialized successfully!\n');
+%% 2. Setup the LSL Network Outlet
+fprintf('Loading LSL library...\n');
+lib = lsl_loadlib();
+
+stream_name = 'BertecForcePlate';
+stream_type = 'Force';
+sample_rate = 1000; 
+source_id = 'Bertec_FP_01';
+
+info = lsl_streaminfo(lib, stream_name, stream_type, num_channels, sample_rate, 'cf_float32', source_id);
+outlet = lsl_outlet(info);
+fprintf('LSL stream "%s" is now broadcasting.\n', stream_name);
+
+%% 3. Data Streaming Loop
+stop_fig = figure('Name', 'Stop Bertec Stream', 'KeyPressFcn', 'set(gcf,''Tag'',''stop'')', ...
+                  'Position', [100 100 300 100], 'Menu', 'none', 'ToolBar', 'none');
+uicontrol('Style', 'text', 'String', 'Press ANY KEY in this window to stop streaming.', ...
+          'Position', [20 30 260 40], 'FontSize', 10);
+
+bytes_per_sample = 4 * num_channels; % 4 bytes per float32 channel sample
+disp('Streaming Bertec data... Select the popup window and press any key to stop.');
+
+try
+    while ~strcmp(get(stop_fig, 'Tag'), 'stop')
+        bytes_available = bertec_client.NumBytesAvailable;
+        
+        if bytes_available >= bytes_per_sample
+            samples_to_read = floor(bytes_available / bytes_per_sample);
+            total_bytes = samples_to_read * bytes_per_sample;
+            
+            % Read raw binary data blocks directly through the network
+            raw_data = read(bertec_client, total_bytes, 'uint8');
+            float_data = typecast(raw_data, 'single');
+            formatted_data = reshape(float_data, num_channels, samples_to_read);
+            
+            % Push samples sequentially out to LSL
+            for i = 1:samples_to_read
+                outlet.push_sample(formatted_data(:, i));
+            end
+        end
+        pause(0.001); 
+    end
+catch ME
+    warning('Streaming interrupted: %s', ME.message);
+end
+
+%% 4. Cleanup Connection
+fprintf('Closing network sockets...\n');
+clear bertec_client;
+if ishandle(stop_fig); close(stop_fig); end
+disp('Bertec stream closed cleanly.');
