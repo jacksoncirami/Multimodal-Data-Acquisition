@@ -1,6 +1,7 @@
 %% 1. Configuration & Network Setup
 clear; clc;
 
+% Default Delsys network parameters
 delsys_ip = '127.0.0.1'; % Localhost (this PC)
 emg_port = 50043;        % Default Delsys EMG server data port
 num_channels = 16;       % Change to match the max slots or active sensors
