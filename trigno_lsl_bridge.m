@@ -4,7 +4,7 @@ clear; clc;
 % Default Delsys network parameters
 delsys_ip = '127.0.0.1'; % Localhost (this PC)
 emg_port = 50043;        % Default Delsys EMG server data port
-num_channels = 16;       % Change to match the max slots or active sensors
+num_channels = 4;       % Change to match the max slots or active sensors
 sample_rate = 2000;      % Delsys EMG fixed sampling rate (Hz)
 
 fprintf('Connecting to Delsys Trigno Server at %s:%d...\n', delsys_ip, emg_port);
