@@ -38,7 +38,7 @@
 
     % High-contrast gray buttons with solid black text
     gray_color = [0.92, 0.92, 0.92];
-    text_color =;
+    text_color = [0, 0, 0];
 
     % Shared button layout measurements
     btnWidth = 280;
