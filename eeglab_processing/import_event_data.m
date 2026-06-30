@@ -1,4 +1,4 @@
-%Imports EEG event data ("Latency", "Type")
+%Imports EEG event data; ("Latency", "Type")
 
 [file,path] = uigetfile('*.csv')
 eventTable = readtable(fullfile(path,file));
