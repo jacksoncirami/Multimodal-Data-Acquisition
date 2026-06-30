@@ -1,32 +1,43 @@
 %% 1. Configuration & Setup
 clear; clc;
 
-% UPDATE THIS: Path to your pre-compiled Win64 LSL folder
+% UPDATE THIS: Path to your LSL library folder
 addpath(genpath('C:\Users\hpuminds\Downloads\liblsl-Matlab-1.14.0-Win_amd64_R2020b\liblsl-Matlab'));
 
-% Default Trigno network parameters
-delsys_ip = '127.0.0.1'; % Localhost loopback
-cmd_port = 50040;        % Delsys Command Communication Port
-emg_port = 50041;        % Delsys Raw EMG Data Port
-num_channels = 4;        % MATCHES YOUR 4 SENSORS EXACTLY
+% UPDATE THIS: Path to the folder where your downloaded Delsys API .dll files are stored
+delsys_api_path = 'C:\DelsysAPI\'; 
+
+% Initialize & Load Delsys .NET Assembly files into MATLAB
+NET.addAssembly(fullfile(delsys_api_path, 'DelsysAPI.dll'));
+NET.addAssembly(fullfile(delsys_api_path, 'DelsysComponents.dll'));
+
+% Fixed hardware parameters matching your experimental setup
+num_channels = 4;        % Fixed # of Sensors
 sample_rate = 2000;      % Fixed Delsys EMG Sampling Rate (Hz)
 
-%% 2. Establish Command Handshake (Forces Trigno Discover to Stream)
-fprintf('Connecting to Delsys Command Channel on Port %d...\n', cmd_port);
+%% 2. Establish Delsys API Handshake (Bypasses Local TCP Ports)
+fprintf('Initializing Delsys API Master Pipeline Objects...\n');
 try
-    % Connect to command port using MATLAB's native network engine
-    cmd_client = tcpclient(delsys_ip, cmd_port, 'Timeout', 5);
+    % Instantiate the primary API pipeline control object
+    pipeline = DelsysAPI.RfPipeline();
     
-    % Send the mandatory Delsys text trigger strings to open the data pipeline
-    write(cmd_client, uint8(['START' char(13) char(10)])); 
-    pause(0.5); % Give the software a half-second to process commands
+    % UPDATE THIS: Set your official validation strings received from Delsys
+    pipeline.Key = 'YOUR_ACTUAL_KEY_STRING_HERE';
+    pipeline.License = 'YOUR_ACTUAL_LICENSE_STRING_HERE';
     
-    fprintf('Handshake successful! Connecting to EMG Data Port %d...\n', emg_port);
-    % Open the primary data reading client with Little-Endian byte formatting
-    delsys_client = tcpclient(delsys_ip, emg_port, 'Timeout', 10, 'ByteOrder', 'little-endian');
-    fprintf('Connected to Delsys hardware successfully!\n');
+    % Scan for your physical Trigno Base Station via USB connection
+    fprintf('Scanning for connected Trigno Base Station and 4 active sensors...\n');
+    pipeline.Scan();
+    
+    % Map and arm all connected wireless data nodes programmatically
+    pipeline.ConfigurePipelineForAllSensors();
+    pipeline.ArmPipeline();
+    
+    % Spin up the hardware RF transmitter collection engine
+    pipeline.Start();
+    fprintf('Connected to Delsys API hardware successfully!\n');
 catch ME
-    error('Connection refused. Ensure Trigno Control Utility is open with 4 active sensors. Error: %s', ME.message);
+    error('API Initialization failure. Verify license string and USB connection. Error: %s', ME.message);
 end
 
 %% 3. Setup the LSL Network Outlet
@@ -47,39 +58,44 @@ stop_fig = figure('Name', 'Stop Delsys Stream', 'KeyPressFcn', 'set(gcf,''Tag'',
 uicontrol('Style', 'text', 'String', 'Press ANY KEY in this window to stop streaming.', ...
           'Position', [20 30 260 40], 'FontSize', 10);
 
-bytes_per_sample = 4 * num_channels; % 4 bytes per float channel
-disp('Streaming Delsys data... Keep Trigno Control Utility window open.');
+disp('Streaming Delsys data directly from API to LSL fabric...');
 
 try
     while ~strcmp(get(stop_fig, 'Tag'), 'stop')
-        bytes_available = delsys_client.NumBytesAvailable;
         
-        if bytes_available >= bytes_per_sample
-            samples_to_read = floor(bytes_available / bytes_per_sample);
-            total_bytes = samples_to_read * bytes_per_sample;
+        % Check if the API background queue has fresh data frames waiting
+        if pipeline.IsDataAvailable()
             
-            % Pull raw bytes and cast directly to single precision floats
-            raw_bytes = read(delsys_client, total_bytes, 'uint8');
-            float_data = typecast(raw_bytes, 'single');
-            formatted_data = reshape(float_data, num_channels, samples_to_read);
+            % Pull the raw multi-channel matrix directly out of the API queue
+            % The modern API delivers clean matrices, completely skipping manual typecasting!
+            api_raw_matrix = pipeline.GetLatestData(); 
             
-            % Push samples sequentially out to LSL network
-            for i = 1:samples_to_read
-                outlet.push_sample(formatted_data(:, i));
+            % Cast to standard single precision array for LSL engine processing
+            float_data = single(api_raw_matrix);
+            
+            % If multiple frames accumulated, push them sequentially out to LSL network
+            [num_chans, total_samples] = size(float_data);
+            for s = 1:total_samples
+                outlet.push_sample(float_data(:, s));
             end
         end
-        pause(0.001); 
+        pause(0.0005); % 0.5 ms high-speed pause to balance CPU overhead
     end
 catch ME
-    warning('Streaming interrupted: %s', ME.message);
+    warning('Streaming execution sequence interrupted: %s', ME.message);
 end
 
-%% 5. Cleanup Connection
-fprintf('Closing network sockets cleanly...\n');
-if exist('cmd_client', 'var')
-    write(cmd_client, uint8(['STOP' char(13) char(10)]));
-    clear cmd_client;
+%% 5. Cleanup Connection & Disarm Hardware
+fprintf('Safely disarming Delsys RF Pipeline hardware components...\n');
+
+if exist('pipeline', 'var')
+    % Explicitly halt data capture commands
+    pipeline.Stop();
+    
+    % Release base station hardware locks for other scripts
+    pipeline.DisarmPipeline();
 end
-clear delsys_client;
+
 if ishandle(stop_fig); close(stop_fig); end
-disp('Delsys stream closed.');
+clear outlet info lib;
+disp('Delsys API stream cleanly disconnected.');
