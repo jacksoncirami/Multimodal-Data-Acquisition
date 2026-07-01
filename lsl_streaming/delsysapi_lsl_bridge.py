@@ -125,6 +125,11 @@ for i, name in enumerate(channel_names):
 print("\nConfiguring Delsys pipeline...")
 
 try:
+    trig.SetSyncOutput(False, 1, True, 37)
+except Exception as e:
+    print(f"Sync output setup warning: {e}")
+
+try:
     trig.Configure()
 except Exception as e:
     raise RuntimeError(f"Configure failed: {e}")
