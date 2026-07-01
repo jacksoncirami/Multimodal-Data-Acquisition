@@ -22,9 +22,7 @@ from Aero import AeroPy
 # 1. Load key/license files
 # ------------------------------------------------------------
 
-key = Path("DelsysAPI.key").read_text(encoding="utf-8").strip()
-license = Path("DelsysAPI.lic").read_text(encoding="utf-8").strip()
-
+from AeroPy.TrignoBase import key, license
 
 # ------------------------------------------------------------
 # 2. LSL settings
