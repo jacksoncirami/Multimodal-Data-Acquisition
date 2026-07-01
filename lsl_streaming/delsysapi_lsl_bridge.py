@@ -1,4 +1,6 @@
-# Open powershell and change working directory to Delsys python folder; cd "C:\Users\hpuminds\Downloads\Example-Applications-main\Example-Applications-main\Python"
+# Open powershell and change working directory to Delsys python folder using the following commands
+# cd "C:\Users\hpuminds\Downloads\Example-Applications-main\Example-Applications-main\Python"
+# python delsysapi_lsl_bridge.py
 
 from pathlib import Path
 import time
