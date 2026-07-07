@@ -1,5 +1,4 @@
 using System;
-using LSL;
 
 namespace BertecExampleNET
 {
@@ -11,9 +10,7 @@ namespace BertecExampleNET
         bool devicesAreaReady = false;
         bool demoImmediateDeviceDataHandler = false;
 
-        // -----------------------------
         // LSL variables
-        // -----------------------------
         liblsl.StreamOutlet lslOutlet = null;
         float[] lslSample = new float[1];
 
@@ -46,18 +43,15 @@ namespace BertecExampleNET
             CloseLibrary();
         }
 
-        // -----------------------------
-        // Initialize LSL stream
-        // -----------------------------
         void InitLSL()
         {
             liblsl.StreamInfo info = new liblsl.StreamInfo(
-                "BertecForcePlate",                  // stream name
-                "Force",                             // stream type
-                1,                                   // channel count: only Fz for now
-                1000.0,                              // Bertec hardware rate
-                liblsl.channel_format_t.cf_float32,  // data type
-                "bertec_force_plate_fz_001"          // unique source ID
+                "BertecForcePlate",
+                "Force",
+                1,
+                1000.0,
+                liblsl.channel_format_t.cf_float32,
+                "bertec_force_plate_fz_001"
             );
 
             liblsl.XMLElement channels = info.desc().append_child("channels");
@@ -111,15 +105,6 @@ namespace BertecExampleNET
                 theHandle.OnDataStream -= DataHandler;
                 theHandle.OnImmediateDeviceData -= ImmediateDeviceDataHandler;
 
-                try
-                {
-                    theHandle.StopDataStream();
-                }
-                catch
-                {
-                    // Ignore if stream is already stopped
-                }
-
                 theHandle.Stop();
                 theHandle.Dispose();
             }
@@ -130,23 +115,8 @@ namespace BertecExampleNET
             Console.WriteLine("\nBertec and LSL bridge closed.");
         }
 
-        void RedetectDevices()
-        {
-            theHandle.RedetectConnectedDevices();
-        }
-
-        void ChangeResamplingRate(int resampleRate)
-        {
-            int numDevices = theHandle.DeviceCount;
-
-            for (int devIndex = 0; devIndex < numDevices; ++devIndex)
-                theHandle.SetDataRateResampling(devIndex, resampleRate);
-        }
-
         void FindFzIndex()
         {
-            int deviceCount = theHandle.DeviceCount;
-
             string[] channelNamesForDevice0 = theHandle.DeviceChannelNames(0);
             int channelCountForDevice0 = channelNamesForDevice0.Length;
 
@@ -273,9 +243,6 @@ namespace BertecExampleNET
 
                                 Console.Write("Fz: {0}                  ", fz);
 
-                                // -----------------------------
-                                // Push Fz to LSL
-                                // -----------------------------
                                 if (lslOutlet != null)
                                 {
                                     lslSample[0] = (float)fz;
