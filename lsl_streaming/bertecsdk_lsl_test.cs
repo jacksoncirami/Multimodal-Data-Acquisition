@@ -9,16 +9,16 @@ class Program
         Console.WriteLine("Open LabRecorder and look for: FakeForceTest");
         Console.WriteLine("Press Ctrl+C to stop.\n");
 
-        liblsl.StreamInfo info = new liblsl.StreamInfo(
+        LSL.StreamInfo info = new LSL.StreamInfo(
             "FakeForceTest",
             "Force",
             1,
             100.0,
-            liblsl.channel_format_t.cf_float32,
+            LSL.channel_format_t.cf_float32,
             "fake_force_test_001"
         );
 
-        liblsl.StreamOutlet outlet = new liblsl.StreamOutlet(info);
+        LSL.StreamOutlet outlet = new LSL.StreamOutlet(info);
 
         float[] sample = new float[1];
         int counter = 0;
