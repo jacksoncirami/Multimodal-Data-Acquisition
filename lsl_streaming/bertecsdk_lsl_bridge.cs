@@ -1,3 +1,5 @@
+#nullable disable
+
 using System;
 
 namespace BertecExampleNET
@@ -9,13 +11,13 @@ namespace BertecExampleNET
         bool devicesAreaReady = false;
         bool demoImmediateDeviceDataHandler = false;
 
-        // Bertec force-channel info
         string[] forceChannelNames = null;
         int forceChannelCount = 0;
 
-        // LSL variables
         LSL.StreamOutlet lslOutlet = null;
         float[] lslSample = null;
+
+        int printCounter = 0;
 
         static void Main(string[] args)
         {
@@ -25,16 +27,25 @@ namespace BertecExampleNET
 
         public void Run()
         {
-            Console.WriteLine("Bertec force plate to LSL bridge.");
-            Console.WriteLine("Streaming ALL Bertec forceData channels to LabRecorder.");
+            Console.WriteLine("=================================================");
+            Console.WriteLine("Bertec Force Plate to LSL Bridge");
+            Console.WriteLine("Streaming whatever Bertec forceData channels are available.");
             Console.WriteLine("LSL stream name: BertecForcePlate");
-            Console.WriteLine("Press ESC or Space to exit.\n");
+            Console.WriteLine("LSL stream type: Force");
+            Console.WriteLine("Press ESC or Space to stop.");
+            Console.WriteLine("=================================================\n");
 
             if (InitLibrary() != 0)
+            {
+                Console.WriteLine("Bertec SDK initialization failed.");
+                Console.WriteLine("Press any key to close.");
+                Console.ReadKey();
                 return;
+            }
 
             int c = 0;
-            while ((c = Console.ReadKey().KeyChar) != 3)
+
+            while ((c = Console.ReadKey(true).KeyChar) != 3)
             {
                 if (c == 27 || c == 32)
                     break;
@@ -60,7 +71,12 @@ namespace BertecExampleNET
             catch (System.Exception)
             {
                 Console.WriteLine("Unable to initialize the Bertec Device Library.");
-                Console.WriteLine("Possible missing FTD2XX install or missing DLLs.");
+                Console.WriteLine("Possible causes:");
+                Console.WriteLine("- Missing FTD2XX driver");
+                Console.WriteLine("- Missing BertecDevice.dll");
+                Console.WriteLine("- Missing BertecDeviceNET.dll");
+                Console.WriteLine("- Missing ftd2xx.dll");
+                Console.WriteLine("- Wrong x86/x64 configuration");
                 return -1;
             }
 
@@ -94,7 +110,7 @@ namespace BertecExampleNET
             lslOutlet = null;
             lslSample = null;
 
-            Console.WriteLine("\nBertec and LSL bridge closed.");
+            Console.WriteLine("\nBertec-to-LSL bridge closed.");
         }
 
         void SetupForceChannelsAndLSL()
@@ -104,11 +120,11 @@ namespace BertecExampleNET
 
             if (forceChannelCount <= 0)
             {
-                Console.WriteLine("WARNING: No Bertec force-data channels found.");
+                Console.WriteLine("WARNING: No Bertec forceData channels found.");
                 return;
             }
 
-            Console.WriteLine("\nBertec force channels found:");
+            Console.WriteLine("\nBertec SDK channels found:");
 
             for (int i = 0; i < forceChannelCount; i++)
             {
@@ -124,7 +140,6 @@ namespace BertecExampleNET
                 "bertec_force_plate_all_channels_001"
             );
 
-            // Add labels to the LSL stream metadata.
             LSL.XMLElement channels = info.desc().append_child("channels");
 
             for (int i = 0; i < forceChannelCount; i++)
@@ -133,23 +148,34 @@ namespace BertecExampleNET
 
                 ch.append_child_value("label", forceChannelNames[i]);
                 ch.append_child_value("type", "ForcePlate");
-
-                string nameUpper = forceChannelNames[i].ToUpper();
-
-                if (nameUpper.StartsWith("F"))
-                    ch.append_child_value("unit", "N");
-                else if (nameUpper.StartsWith("M"))
-                    ch.append_child_value("unit", "Nm");
-                else
-                    ch.append_child_value("unit", "unknown");
+                ch.append_child_value("unit", GuessUnit(forceChannelNames[i]));
             }
 
             lslSample = new float[forceChannelCount];
             lslOutlet = new LSL.StreamOutlet(info);
 
-            Console.WriteLine("\nLSL stream created: BertecForcePlate");
+            Console.WriteLine("\nLSL stream created.");
+            Console.WriteLine("Name: BertecForcePlate");
+            Console.WriteLine("Type: Force");
+            Console.WriteLine("Sampling rate: 1000 Hz");
             Console.WriteLine("Channel count: {0}", forceChannelCount);
             Console.WriteLine("Open LabRecorder and look for this stream.\n");
+        }
+
+        string GuessUnit(string channelName)
+        {
+            string upper = channelName.ToUpper();
+
+            if (upper.StartsWith("F"))
+                return "N";
+
+            if (upper.StartsWith("M"))
+                return "Nm";
+
+            if (upper.StartsWith("COP"))
+                return "unknown";
+
+            return "unknown";
         }
 
         void StatusHandler(BertecDeviceNET.StatusErrors status)
@@ -157,14 +183,14 @@ namespace BertecExampleNET
             switch (status)
             {
                 case BertecDeviceNET.StatusErrors.LOOKING_FOR_DEVICES:
-                    Console.WriteLine("\nSearching for connected devices");
+                    Console.WriteLine("\nSearching for connected Bertec devices...");
                     devicesAreaReady = false;
                     forceChannelNames = null;
                     forceChannelCount = 0;
                     break;
 
                 case BertecDeviceNET.StatusErrors.NO_DEVICES_FOUND:
-                    Console.WriteLine("\nNo devices found");
+                    Console.WriteLine("\nNo Bertec devices found.");
                     devicesAreaReady = false;
                     forceChannelNames = null;
                     forceChannelCount = 0;
@@ -172,7 +198,7 @@ namespace BertecExampleNET
 
                 case BertecDeviceNET.StatusErrors.DEVICES_READY:
                 {
-                    Console.WriteLine("\nDevices found and ready");
+                    Console.WriteLine("\nDevices found and ready.");
 
                     for (int devNum = 0; devNum < theHandle.DeviceCount; ++devNum)
                     {
@@ -209,27 +235,30 @@ namespace BertecExampleNET
                         theHandle.AutoZeroing = true;
 
                         devicesAreaReady = true;
+
+                        Console.WriteLine("\nBridge is running.");
+                        Console.WriteLine("Open LabRecorder and select: BertecForcePlate\n");
                     });
 
                     break;
                 }
 
                 case BertecDeviceNET.StatusErrors.NO_DATA_RECEIVED:
-                    Console.WriteLine("\nNo data being received");
+                    Console.WriteLine("\nNo data being received.");
                     devicesAreaReady = false;
                     break;
 
                 case BertecDeviceNET.StatusErrors.DEVICE_HAS_FAULTED:
-                    Console.WriteLine("\nDevice has faulted");
+                    Console.WriteLine("\nBertec device has faulted.");
                     devicesAreaReady = false;
                     break;
 
                 case BertecDeviceNET.StatusErrors.AUTOZEROSTATE_WORKING:
-                    Console.WriteLine("\nDetermining autozero");
+                    Console.WriteLine("\nDetermining autozero...");
                     break;
 
                 case BertecDeviceNET.StatusErrors.AUTOZEROSTATE_ZEROFOUND:
-                    Console.WriteLine("\nAutozero found");
+                    Console.WriteLine("\nAutozero found.");
                     break;
 
                 default:
@@ -243,6 +272,9 @@ namespace BertecExampleNET
             if (!devicesAreaReady)
                 return;
 
+            if (lslOutlet == null || lslSample == null)
+                return;
+
             for (int deviceNumber = 0; deviceNumber < dataFrames.Length; ++deviceNumber)
             {
                 if (deviceNumber != 0)
@@ -250,10 +282,7 @@ namespace BertecExampleNET
 
                 BertecDeviceNET.DataFrame deviceData = dataFrames[deviceNumber];
 
-                if (deviceData.forceData.Length <= 0)
-                    return;
-
-                if (lslOutlet == null || lslSample == null)
+                if (deviceData.forceData == null || deviceData.forceData.Length <= 0)
                     return;
 
                 int channelsToCopy = Math.Min(forceChannelCount, deviceData.forceData.Length);
@@ -263,17 +292,30 @@ namespace BertecExampleNET
                     lslSample[i] = (float)deviceData.forceData[i];
                 }
 
-                lslOutlet.push_sample(lslSample);
-
-                // Print timestamp and first few values so you know it is alive.
-                Console.Write("\rTimestamp: {0}  ", deviceData.timestamp);
-
-                for (int i = 0; i < Math.Min(6, channelsToCopy); i++)
+                for (int i = channelsToCopy; i < forceChannelCount; i++)
                 {
-                    Console.Write("{0}: {1}  ", forceChannelNames[i], lslSample[i]);
+                    lslSample[i] = 0.0f;
                 }
 
-                Console.Out.Flush();
+                lslOutlet.push_sample(lslSample);
+
+                printCounter++;
+
+                if (printCounter >= 100)
+                {
+                    printCounter = 0;
+
+                    Console.Write("\rTimestamp: {0}  ", deviceData.timestamp);
+
+                    int channelsToPrint = Math.Min(6, channelsToCopy);
+
+                    for (int i = 0; i < channelsToPrint; i++)
+                    {
+                        Console.Write("{0}: {1}  ", forceChannelNames[i], lslSample[i]);
+                    }
+
+                    Console.Out.Flush();
+                }
             }
         }
 
@@ -285,10 +327,10 @@ namespace BertecExampleNET
             if (!devicesAreaReady)
                 return;
 
-            if (deviceData.forceData.Length <= 0)
+            if (lslOutlet == null || lslSample == null)
                 return;
 
-            if (lslOutlet == null || lslSample == null)
+            if (deviceData.forceData == null || deviceData.forceData.Length <= 0)
                 return;
 
             int channelsToCopy = Math.Min(forceChannelCount, deviceData.forceData.Length);
@@ -298,10 +340,12 @@ namespace BertecExampleNET
                 lslSample[i] = (float)deviceData.forceData[i];
             }
 
-            lslOutlet.push_sample(lslSample);
+            for (int i = channelsToCopy; i < forceChannelCount; i++)
+            {
+                lslSample[i] = 0.0f;
+            }
 
-            Console.Write("\r[I]{0}, {1}, {2}", deviceIndex, deviceUid, deviceData.timestamp);
-            Console.Out.Flush();
+            lslOutlet.push_sample(lslSample);
         }
     }
 }
