@@ -1,18 +1,3 @@
-% import_multimodal_xdf.m
-%
-% Purpose:
-% Load a LabRecorder .xdf file containing EEG, EMG, force plate,
-% regular task markers, and optional MVC markers.
-%
-% Outputs:
-% 1. One organized MultiModal structure
-% 2. Easy top-level workspace variables:
-%       EEG_data, EMG_data, ForcePlate_data, MarkerTable, MVCMarkerTable
-% 3. Marker CSV files:
-%       *_markers.csv          = regular GuiMarkers only
-%       *_mvc_markers.csv      = MVCMarkers only
-%       *_all_markers.csv      = regular + MVC markers combined and sorted
-
 clear; clc;
 
 %% 1. Check That load_xdf is Available
