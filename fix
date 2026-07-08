@@ -1,17 +1,36 @@
-%% Fix old Mobilab strsplit path issue
+%% Remove Mobilab / PropertyGrid path conflict
 
-badFolder = 'C:\Users\hpuminds\Downloads\eeglab2026.0\plugins\Mobilab20210924';
+fprintf('\nBefore cleanup, MATLAB finds strsplit here:\n');
+which strsplit -all
 
-if isfolder(badFolder)
-    rmpath(genpath(badFolder));
-    fprintf('Removed Mobilab folder from MATLAB path:\n%s\n', badFolder);
-else
-    warning('Mobilab folder not found at the expected location.');
+allPathFolders = regexp(path, regexptranslate('escape', pathsep), 'split');
+
+badPathFolders = {};
+
+for k = 1:numel(allPathFolders)
+    thisFolder = allPathFolders{k};
+    thisFolderLower = lower(thisFolder);
+
+    if contains(thisFolderLower, 'mobilab') || contains(thisFolderLower, 'propertygrid')
+        badPathFolders{end+1} = thisFolder;
+    end
 end
 
-savepath
-clear functions
-rehash toolboxcache
+if isempty(badPathFolders)
+    fprintf('\nNo Mobilab or PropertyGrid folders were found on the MATLAB path.\n');
+    fprintf('Copy/paste the output from "which strsplit -all" so we can see the exact bad path.\n');
+else
+    fprintf('\nRemoving these folders from the MATLAB path:\n');
+    disp(badPathFolders')
 
-fprintf('\nMATLAB is now using this strsplit:\n');
-which strsplit -all
+    for k = 1:numel(badPathFolders)
+        rmpath(badPathFolders{k});
+    end
+
+    savepath
+    clear functions
+    rehash toolboxcache
+
+    fprintf('\nAfter cleanup, MATLAB finds strsplit here:\n');
+    which strsplit -all
+end
