@@ -2,15 +2,10 @@
 % Load a LabRecorder .xdf file containing EEG, EMG, force plate, and markers.
 % Separate the streams into one organized MATLAB structure.
 % Save the organized data as a .mat file and save markers as a .csv file.
-%
-% Important:
-% This script also creates simple top-level variables:
-% EEG_data, EMG_data, ForcePlate_data, MarkerTable
-% These are easier to click/view in the MATLAB Workspace.
 
 clear; clc;
 
-%% 1. Check that load_xdf is available
+%% 1. Check That load_xdf is Available
 
 if exist('load_xdf', 'file') ~= 2
     error(['load_xdf was not found on the MATLAB path.\n\n' ...
@@ -19,7 +14,7 @@ end
 
 fprintf('\nUsing load_xdf from:\n%s\n', which('load_xdf'));
 
-%% 2. Select XDF file
+%% 2. Select XDF File
 
 [file, folder] = uigetfile('*.xdf', 'Select your LabRecorder XDF file');
 
@@ -31,7 +26,7 @@ xdfFile = fullfile(folder, file);
 
 fprintf('\nSelected XDF file:\n%s\n', xdfFile);
 
-%% 3. Load XDF file
+%% 3. Load XDF File
 
 [streams, fileheader] = load_xdf(xdfFile);
 
@@ -39,7 +34,7 @@ if isempty(streams)
     error('No streams were found in this XDF file.');
 end
 
-%% 4. Print stream information
+%% 4. Print Stream Information
 
 fprintf('\n===== Streams found in XDF file =====\n');
 
@@ -70,7 +65,7 @@ for i = 1:length(streams)
     fprintf('Data size: %s\n', mat2str(dataSize));
 end
 
-%% 5. Enter stream numbers
+%% 5. Enter Stream Numbers
 
 fprintf('\nEnter the stream numbers based on the list above.\n');
 
@@ -84,14 +79,14 @@ check_stream_index(emgIdx, length(streams), 'EMG');
 check_stream_index(forceIdx, length(streams), 'Force plate');
 check_stream_index(markerIdx, length(streams), 'Marker');
 
-%% 6. Assign streams
+%% 6. Assign Streams
 
 eegStream = streams{eegIdx};
 emgStream = streams{emgIdx};
 forceStream = streams{forceIdx};
 markerStream = streams{markerIdx};
 
-%% 7. Extract data and timestamps
+%% 7. Extract Data And Timestamps
 
 EEG_data = double(eegStream.time_series);
 EMG_data = double(emgStream.time_series);
@@ -103,7 +98,7 @@ ForcePlate_time_raw = forceStream.time_stamps;
 Marker_time_raw = markerStream.time_stamps;
 Marker_labels_raw = markerStream.time_series;
 
-%% 8. Make sure required streams are not empty
+%% 8. Make Sure Required Streams Are Not Empty
 
 if isempty(EEG_time_raw) || isempty(EEG_data)
     error('The selected EEG stream is empty. Check the EEG stream number.');
@@ -121,13 +116,13 @@ if isempty(Marker_time_raw) || isempty(Marker_labels_raw)
     error('The selected marker stream is empty. Check the marker stream number.');
 end
 
-%% 9. Make all data channels x samples
+%% 9. Make All Data Channels x Samples
 
 EEG_data = make_channels_by_samples(EEG_data, EEG_time_raw);
 EMG_data = make_channels_by_samples(EMG_data, EMG_time_raw);
 ForcePlate_data = make_channels_by_samples(ForcePlate_data, ForcePlate_time_raw);
 
-%% 10. Convert timestamps to seconds from recording start
+%% 10. Convert Timestamps to Seconds From Recording Start
 
 t0 = min([ ...
     EEG_time_raw(1), ...
@@ -141,7 +136,7 @@ EMG_time = EMG_time_raw - t0;
 ForcePlate_time = ForcePlate_time_raw - t0;
 Marker_time = Marker_time_raw - t0;
 
-%% 11. Clean marker labels
+%% 11. Clean Marker Labels
 
 Marker_labels = clean_marker_labels(Marker_labels_raw);
 
@@ -156,7 +151,7 @@ MarkerTable = table( ...
     'VariableNames', {'Time_seconds', 'Marker_Label'} ...
 );
 
-%% 12. Get sample rates and channel labels
+%% 12. Get Sample Rates And Channel Labels
 
 EEG_srate = str2double(get_xdf_info(eegStream, 'nominal_srate'));
 EMG_srate = str2double(get_xdf_info(emgStream, 'nominal_srate'));
@@ -166,7 +161,7 @@ EEG_channel_labels = get_xdf_channel_labels(eegStream);
 EMG_channel_labels = get_xdf_channel_labels(emgStream);
 ForcePlate_channel_labels = get_xdf_channel_labels(forceStream);
 
-%% 13. Build organized multimodal structure
+%% 13. Build Organized Multimodal Structure
 
 MultiModal = struct();
 
@@ -205,7 +200,7 @@ MultiModal.Markers.labels = Marker_labels;
 MultiModal.Markers.table = MarkerTable;
 MultiModal.Markers.info = markerStream.info;
 
-%% 14. Print summary
+%% 14. Print Summary
 
 fprintf('\n===== Organized data summary =====\n');
 
@@ -222,7 +217,7 @@ fprintf('Markers:     %d events\n', height(MarkerTable));
 
 disp(MarkerTable);
 
-%% 15. Create output folder
+%% 15. Create Output Folder
 
 processedFolder = fullfile(folder, 'processed_mat');
 
@@ -230,7 +225,7 @@ if ~exist(processedFolder, 'dir')
     mkdir(processedFolder);
 end
 
-%% 16. Save files
+%% 16. Save Files
 
 [~, baseName, ~] = fileparts(file);
 
