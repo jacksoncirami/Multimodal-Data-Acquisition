@@ -1,3 +1,7 @@
+% Purpose:
+% Load a LabRecorder .xdf file containing EEG, EMG, force plate,
+% regular task markers, and optional MVC markers.
+
 clear; clc;
 
 %% 1. Check That load_xdf is Available
