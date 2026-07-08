@@ -6,47 +6,25 @@ namespace BertecExampleNET
 {
     class SimpleFZReaderExample
     {
-        // ============================================================
-        // Bertec SDK variables
-        // ============================================================
         BertecDeviceNET.BertecDevice theHandle = null;
 
         bool devicesAreaReady = false;
         bool demoImmediateDeviceDataHandler = false;
 
-        // ============================================================
-        // Bertec SDK channel names and indexes
-        // ============================================================
         string[] sdkChannelNames = null;
 
-        int idxFZR = -1;
-        int idxMXR = -1;
-        int idxMYR = -1;
+        int idxFZR = -1, idxMXR = -1, idxMYR = -1;
+        int idxFZL = -1, idxMXL = -1, idxMYL = -1;
+        int idxFZ = -1, idxMX = -1, idxMY = -1;
 
-        int idxFZL = -1;
-        int idxMXL = -1;
-        int idxMYL = -1;
-
-        int idxFZ = -1;
-        int idxMX = -1;
-        int idxMY = -1;
-
-        // ============================================================
-        // LSL variables
-        // ============================================================
         LSL.StreamOutlet lslOutlet = null;
         float[] lslSample = null;
 
-        // ============================================================
-        // Software tare / baseline correction
-        //
-        // The Bertec SDK may output a large baseline offset.
-        // This code averages the first BASELINE_SAMPLE_COUNT samples
-        // while the plate is empty, then subtracts that baseline from
-        // all future force and moment values.
-        // ============================================================
-        const int BASELINE_SAMPLE_COUNT = 2000; // ~2 seconds at 1000 Hz
-        const double MIN_FORCE_FOR_COP = 20.0; // N threshold for valid COP
+        const int BASELINE_SAMPLE_COUNT = 2000;   // ~2 seconds at 1000 Hz
+        const double MIN_FORCE_FOR_COP = 20.0;    // N
+        const double SAMPLE_RATE_HZ = 1000.0;
+        const double DT = 1.0 / SAMPLE_RATE_HZ;
+        const double GRAVITY = 9.81;
 
         double[] baselineSums = new double[9];
         double[] baselineValues = new double[9];
@@ -54,9 +32,15 @@ namespace BertecExampleNET
         int baselineSamplesCollected = 0;
         bool baselineComplete = false;
 
-        // ============================================================
-        // Output channels sent to LabRecorder
-        // ============================================================
+        double participantHeightInches = 0.0;
+        double participantHeightMeters = 0.0;
+        double estimatedComHeightMeters = 0.0;
+
+        double cogFilterAlpha = 0.0;
+        double cogXEst = double.NaN;
+        double cogYEst = double.NaN;
+        bool cogInitialized = false;
+
         readonly string[] outputChannelNames =
         {
             "FZR", "MXR", "MYR",
@@ -64,7 +48,8 @@ namespace BertecExampleNET
             "FZ",  "MX",  "MY",
             "COPXR", "COPYR",
             "COPXL", "COPYL",
-            "COPX",  "COPY"
+            "COPX",  "COPY",
+            "COGX_est", "COGY_est", "COG_est"
         };
 
         int printCounter = 0;
@@ -79,14 +64,16 @@ namespace BertecExampleNET
         {
             Console.WriteLine("=================================================");
             Console.WriteLine("Bertec Force Plate to LSL Bridge");
-            Console.WriteLine("Streams baseline-corrected force/moment + COP.");
+            Console.WriteLine("Streams baseline-corrected force/moment + COP + estimated COG.");
             Console.WriteLine("LSL stream name: BertecForcePlate");
             Console.WriteLine("LSL stream type: Force");
-            Console.WriteLine("");
-            Console.WriteLine("IMPORTANT:");
+            Console.WriteLine("=================================================\n");
+
+            SetupParticipantHeight();
+
+            Console.WriteLine("\nIMPORTANT:");
             Console.WriteLine("Keep the force plate EMPTY during startup.");
             Console.WriteLine("The first ~2 seconds are used for software tare.");
-            Console.WriteLine("");
             Console.WriteLine("Press ESC or Space to stop.");
             Console.WriteLine("=================================================\n");
 
@@ -102,7 +89,7 @@ namespace BertecExampleNET
 
             while ((c = Console.ReadKey(true).KeyChar) != 3)
             {
-                if (c == 27 || c == 32) // ESC or Space
+                if (c == 27 || c == 32)
                     break;
 
                 System.Threading.Thread.Sleep(15);
@@ -111,15 +98,39 @@ namespace BertecExampleNET
             CloseLibrary();
         }
 
+        void SetupParticipantHeight()
+        {
+            while (true)
+            {
+                Console.Write("Enter participant height in inches: ");
+                string input = Console.ReadLine();
+
+                if (double.TryParse(input, out participantHeightInches) && participantHeightInches > 0)
+                    break;
+
+                Console.WriteLine("Invalid height. Example: 70.5");
+            }
+
+            participantHeightMeters = participantHeightInches * 0.0254;
+            estimatedComHeightMeters = 0.55 * participantHeightMeters;
+
+            double naturalFrequencyRadPerSec = Math.Sqrt(GRAVITY / estimatedComHeightMeters);
+            cogFilterAlpha = 1.0 - Math.Exp(-naturalFrequencyRadPerSec * DT);
+
+            Console.WriteLine("\nParticipant height: {0:F2} inches", participantHeightInches);
+            Console.WriteLine("Participant height: {0:F3} m", participantHeightMeters);
+            Console.WriteLine("Estimated COM height: {0:F3} m", estimatedComHeightMeters);
+        }
+
         int InitLibrary()
         {
             devicesAreaReady = false;
             sdkChannelNames = null;
-
             lslOutlet = null;
             lslSample = null;
 
             ResetBaseline();
+            ResetCogEstimate();
 
             try
             {
@@ -183,6 +194,13 @@ namespace BertecExampleNET
             printCounter = 0;
         }
 
+        void ResetCogEstimate()
+        {
+            cogXEst = double.NaN;
+            cogYEst = double.NaN;
+            cogInitialized = false;
+        }
+
         bool SetupChannelsAndLSL()
         {
             sdkChannelNames = theHandle.DeviceChannelNames(0);
@@ -196,9 +214,7 @@ namespace BertecExampleNET
             Console.WriteLine("\nBertec SDK channels found:");
 
             for (int i = 0; i < sdkChannelNames.Length; i++)
-            {
                 Console.WriteLine("SDK channel {0}: {1}", i, sdkChannelNames[i]);
-            }
 
             idxFZR = FindChannelIndex("FZR");
             idxMXR = FindChannelIndex("MXR");
@@ -226,9 +242,9 @@ namespace BertecExampleNET
                 "BertecForcePlate",
                 "Force",
                 outputChannelNames.Length,
-                1000.0,
+                SAMPLE_RATE_HZ,
                 LSL.channel_format_t.cf_float32,
-                "bertec_force_plate_tared_raw_plus_cop_001"
+                "bertec_force_plate_tared_cop_cog_est_001"
             );
 
             LSL.XMLElement channels = info.desc().append_child("channels");
@@ -254,14 +270,13 @@ namespace BertecExampleNET
 
             Console.WriteLine("\nOutput channels:");
             for (int i = 0; i < outputChannelNames.Length; i++)
-            {
                 Console.WriteLine("LSL channel {0}: {1}", i, outputChannelNames[i]);
-            }
 
             Console.WriteLine("\nKeep plate empty. Collecting software tare baseline...");
             Console.WriteLine("Do not step on the plate yet.\n");
 
             ResetBaseline();
+            ResetCogEstimate();
 
             return true;
         }
@@ -289,6 +304,9 @@ namespace BertecExampleNET
 
             if (upper.StartsWith("COP"))
                 return "m";
+
+            if (upper.StartsWith("COG"))
+                return "m_estimated";
 
             return "unknown";
         }
@@ -402,8 +420,6 @@ namespace BertecExampleNET
                 if (deviceData.forceData == null || deviceData.forceData.Length <= 0)
                     return;
 
-                // First collect empty-plate baseline. No samples are pushed to LSL
-                // until the baseline is complete.
                 if (!baselineComplete)
                 {
                     AccumulateBaseline(deviceData.forceData);
@@ -421,8 +437,8 @@ namespace BertecExampleNET
                     printCounter = 0;
 
                     Console.Write("\rTimestamp: {0}  ", deviceData.timestamp);
-                    Console.Write("Corrected FZ: {0} N  COPX: {1} m  COPY: {2} m      ",
-                        lslSample[6], lslSample[13], lslSample[14]);
+                    Console.Write("FZ: {0} N  COPX: {1} m  COPY: {2} m  COGX_est: {3} m  COGY_est: {4} m  COG_est: {5} m      ",
+                        lslSample[6], lslSample[13], lslSample[14], lslSample[15], lslSample[16], lslSample[17]);
 
                     Console.Out.Flush();
                 }
@@ -480,9 +496,7 @@ namespace BertecExampleNET
             if (baselineSamplesCollected >= BASELINE_SAMPLE_COUNT)
             {
                 for (int i = 0; i < baselineValues.Length; i++)
-                {
                     baselineValues[i] = baselineSums[i] / baselineSamplesCollected;
-                }
 
                 baselineComplete = true;
 
@@ -503,7 +517,6 @@ namespace BertecExampleNET
 
         void BuildOutputSample(float[] forceData)
         {
-            // Subtract empty-plate baseline from raw force/moment channels.
             double FZR = forceData[idxFZR] - baselineValues[0];
             double MXR = forceData[idxMXR] - baselineValues[1];
             double MYR = forceData[idxMYR] - baselineValues[2];
@@ -525,6 +538,10 @@ namespace BertecExampleNET
             double COPX = ComputeCopX(MY, FZ);
             double COPY = ComputeCopY(MX, FZ);
 
+            UpdateCogEstimate(COPX, COPY);
+
+            double COG_est = ComputeCogMagnitude(cogXEst, cogYEst);
+
             lslSample[0]  = (float)FZR;
             lslSample[1]  = (float)MXR;
             lslSample[2]  = (float)MYR;
@@ -545,6 +562,43 @@ namespace BertecExampleNET
 
             lslSample[13] = (float)COPX;
             lslSample[14] = (float)COPY;
+
+            lslSample[15] = (float)cogXEst;
+            lslSample[16] = (float)cogYEst;
+            lslSample[17] = (float)COG_est;
+        }
+
+        void UpdateCogEstimate(double copX, double copY)
+        {
+            if (double.IsNaN(copX) || double.IsNaN(copY))
+            {
+                if (!cogInitialized)
+                {
+                    cogXEst = double.NaN;
+                    cogYEst = double.NaN;
+                }
+
+                return;
+            }
+
+            if (!cogInitialized)
+            {
+                cogXEst = copX;
+                cogYEst = copY;
+                cogInitialized = true;
+                return;
+            }
+
+            cogXEst = cogXEst + cogFilterAlpha * (copX - cogXEst);
+            cogYEst = cogYEst + cogFilterAlpha * (copY - cogYEst);
+        }
+
+        double ComputeCogMagnitude(double cogX, double cogY)
+        {
+            if (double.IsNaN(cogX) || double.IsNaN(cogY))
+                return double.NaN;
+
+            return Math.Sqrt((cogX * cogX) + (cogY * cogY));
         }
 
         double ComputeCopX(double momentY, double forceZ)
@@ -552,9 +606,6 @@ namespace BertecExampleNET
             if (Math.Abs(forceZ) < MIN_FORCE_FOR_COP)
                 return double.NaN;
 
-            // Common force-plate convention:
-            // COPX = -MY / FZ
-            // Verify sign against Bertec CSV export if needed.
             return -momentY / forceZ;
         }
 
@@ -563,9 +614,6 @@ namespace BertecExampleNET
             if (Math.Abs(forceZ) < MIN_FORCE_FOR_COP)
                 return double.NaN;
 
-            // Common force-plate convention:
-            // COPY = MX / FZ
-            // Verify sign against Bertec CSV export if needed.
             return momentX / forceZ;
         }
     }
