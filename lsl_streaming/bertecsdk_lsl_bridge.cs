@@ -6,26 +6,46 @@ namespace BertecExampleNET
 {
     class SimpleFZReaderExample
     {
+        // ============================================================
+        // Bertec SDK variables
+        // ============================================================
         BertecDeviceNET.BertecDevice theHandle = null;
 
         bool devicesAreaReady = false;
         bool demoImmediateDeviceDataHandler = false;
 
+        // ============================================================
+        // Bertec SDK channel names and indexes
+        // ============================================================
         string[] sdkChannelNames = null;
 
         int idxFZR = -1;
         int idxMXR = -1;
         int idxMYR = -1;
+
         int idxFZL = -1;
         int idxMXL = -1;
         int idxMYL = -1;
-        int idxFZ  = -1;
-        int idxMX  = -1;
-        int idxMY  = -1;
 
+        int idxFZ = -1;
+        int idxMX = -1;
+        int idxMY = -1;
+
+        // ============================================================
+        // LSL variables
+        // ============================================================
         LSL.StreamOutlet lslOutlet = null;
         float[] lslSample = null;
 
+        // ============================================================
+        // Output channels sent to LabRecorder
+        //
+        // Raw Bertec SDK channels:
+        // FZR, MXR, MYR, FZL, MXL, MYL, FZ, MX, MY
+        //
+        // Computed channels:
+        // COPXR, COPYR, COPXL, COPYL, COPX, COPY
+        // ============================================================
         readonly string[] outputChannelNames =
         {
             "FZR", "MXR", "MYR",
@@ -50,6 +70,7 @@ namespace BertecExampleNET
             Console.WriteLine("Bertec Force Plate to LSL Bridge");
             Console.WriteLine("Streams raw force/moment channels + computed COP.");
             Console.WriteLine("LSL stream name: BertecForcePlate");
+            Console.WriteLine("LSL stream type: Force");
             Console.WriteLine("Press ESC or Space to stop.");
             Console.WriteLine("=================================================\n");
 
@@ -65,7 +86,7 @@ namespace BertecExampleNET
 
             while ((c = Console.ReadKey(true).KeyChar) != 3)
             {
-                if (c == 27 || c == 32)
+                if (c == 27 || c == 32) // ESC or Space
                     break;
 
                 System.Threading.Thread.Sleep(15);
@@ -78,6 +99,7 @@ namespace BertecExampleNET
         {
             devicesAreaReady = false;
             sdkChannelNames = null;
+
             lslOutlet = null;
             lslSample = null;
 
@@ -88,7 +110,12 @@ namespace BertecExampleNET
             catch (System.Exception)
             {
                 Console.WriteLine("Unable to initialize the Bertec Device Library.");
-                Console.WriteLine("Possible missing FTD2XX install or missing DLLs.");
+                Console.WriteLine("Possible causes:");
+                Console.WriteLine("- Missing FTD2XX driver");
+                Console.WriteLine("- Missing BertecDevice.dll");
+                Console.WriteLine("- Missing BertecDeviceNET.dll");
+                Console.WriteLine("- Missing ftd2xx.dll");
+                Console.WriteLine("- Wrong x86/x64 configuration");
                 return -1;
             }
 
@@ -159,7 +186,8 @@ namespace BertecExampleNET
                 idxFZ  < 0 || idxMX  < 0 || idxMY  < 0)
             {
                 Console.WriteLine("\nERROR: One or more required raw channels were not found.");
-                Console.WriteLine("Required: FZR, MXR, MYR, FZL, MXL, MYL, FZ, MX, MY");
+                Console.WriteLine("Required raw channels:");
+                Console.WriteLine("FZR, MXR, MYR, FZL, MXL, MYL, FZ, MX, MY");
                 return false;
             }
 
@@ -378,7 +406,7 @@ namespace BertecExampleNET
             lslOutlet.push_sample(lslSample);
         }
 
-        void BuildOutputSample(double[] forceData)
+        void BuildOutputSample(float[] forceData)
         {
             double FZR = forceData[idxFZR];
             double MXR = forceData[idxMXR];
@@ -428,7 +456,8 @@ namespace BertecExampleNET
             if (Math.Abs(forceZ) < 1e-6)
                 return double.NaN;
 
-            // Common force-plate convention: COPx = -My / Fz
+            // Common force-plate convention:
+            // COPX = -MY / FZ
             // Verify sign against Bertec CSV export.
             return -momentY / forceZ;
         }
@@ -438,7 +467,8 @@ namespace BertecExampleNET
             if (Math.Abs(forceZ) < 1e-6)
                 return double.NaN;
 
-            // Common force-plate convention: COPy = Mx / Fz
+            // Common force-plate convention:
+            // COPY = MX / FZ
             // Verify sign against Bertec CSV export.
             return momentX / forceZ;
         }
