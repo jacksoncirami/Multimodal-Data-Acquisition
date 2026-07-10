@@ -2,8 +2,8 @@
 tStart = [];
 tEnd   = [];
 chToPlot = 1:size(EMG_data,1);
-maxPlotPoints = 20000;           
-showMarkerLabels = true;         
+maxPlotPoints = 20000;
+showMarkerLabels = true;
 plotRMS = false;                 % false = raw EMG, true = RMS envelope
 rmsWindowSeconds = 0.050;        % 50 ms RMS window if plotRMS = true
 
@@ -54,7 +54,7 @@ end
 
 offsetAmount = 3;
 
-figure;
+figure('Name','EMG Data With Markers','NumberTitle','off');
 hold on;
 
 for ch = 1:size(displayData,1)
@@ -62,18 +62,24 @@ for ch = 1:size(displayData,1)
     plot(plotTime, displayData(ch,:) + yOffset);
 end
 
-% ===== Add markers =====
+% ===== Add markers and save marker handles =====
+markerHandles = gobjects(0);
+
 if exist('MarkerTable','var') && height(MarkerTable) > 0
     markerIdx = MarkerTable.Time_seconds >= tStart & MarkerTable.Time_seconds <= tEnd;
     markerTimes = MarkerTable.Time_seconds(markerIdx);
     markerLabels = string(MarkerTable.Marker_Label(markerIdx));
 
     for m = 1:length(markerTimes)
-        xline(markerTimes(m), '--');
+        hLine = xline(markerTimes(m), '--');
+        markerHandles(end+1) = hLine;
 
         if showMarkerLabels
-            text(markerTimes(m), size(displayData,1)*offsetAmount, markerLabels(m), ...
-                'Rotation', 90, 'FontSize', 8, 'HorizontalAlignment', 'right');
+            hText = text(markerTimes(m), size(displayData,1)*offsetAmount, markerLabels(m), ...
+                'Rotation', 90, ...
+                'FontSize', 8, ...
+                'HorizontalAlignment', 'right');
+            markerHandles(end+1) = hText;
         end
     end
 end
@@ -91,3 +97,12 @@ else
 end
 
 xlim([tStart tEnd]);
+
+% ===== Marker visibility checkbox =====
+uicontrol('Style','checkbox', ...
+    'String','Show markers', ...
+    'Value',1, ...
+    'Units','normalized', ...
+    'Position',[0.82 0.94 0.15 0.04], ...
+    'UserData',markerHandles, ...
+    'Callback','h=get(gcbo,''UserData''); if get(gcbo,''Value''), set(h,''Visible'',''on''); else, set(h,''Visible'',''off''); end');
