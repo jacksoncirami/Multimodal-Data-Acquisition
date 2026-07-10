@@ -1,10 +1,6 @@
 % Purpose:
 % Load a LabRecorder .xdf file containing EEG, EMG, force plate, and two LSL marker streams
 
-% Marker setup:
-% Marker Stream 1 is usually GuiMarkers.
-% Marker Stream 2 is usually MVCMarkers.
-
 clear; clc;
 
 %% 1. Check That load_xdf is Available
