@@ -7,7 +7,7 @@ close all;
 eegChannel = 3;
 emgChannel = 1;
 
-% Window settings
+% ===== Adjustable settings =====
 windowSeconds = 2;
 stepSeconds = 0.5;
 
