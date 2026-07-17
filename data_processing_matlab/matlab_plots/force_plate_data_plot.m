@@ -1,25 +1,37 @@
 % ===== Adjustable settings =====
 tStart = [];
 tEnd   = [];
+
 chToPlot = 1:size(ForcePlate_data,1);
-maxPlotPoints = 20000;
 showMarkerLabels = true;
 
-normalizeChannels = true;   % true = normalized view, false = raw values with vertical offsets
+normalizeChannels = true;  % true = normalized, false = amplitude preserved
+
+yScale = 100;               % Visible range around each channel: +/- yScale
+signalUnit = 'N';
+
 
 % ===== Check selected channels =====
-if isempty(chToPlot) || min(chToPlot) < 1 || max(chToPlot) > size(ForcePlate_data,1)
+if isempty(chToPlot) || ...
+        min(chToPlot) < 1 || ...
+        max(chToPlot) > size(ForcePlate_data,1)
+
     error('chToPlot contains an invalid force plate channel number.');
 end
+
 
 % ===== Channel labels =====
 lineLabels = strings(1, numel(chToPlot));
 
 for k = 1:numel(chToPlot)
+
     thisCh = chToPlot(k);
 
-    if exist('ForcePlate_channel_labels','var') && numel(ForcePlate_channel_labels) >= thisCh
+    if exist('ForcePlate_channel_labels','var') && ...
+            numel(ForcePlate_channel_labels) >= thisCh
+
         thisLabel = string(ForcePlate_channel_labels(thisCh));
+
     else
         thisLabel = "";
     end
@@ -30,6 +42,7 @@ for k = 1:numel(chToPlot)
 
     lineLabels(k) = thisLabel;
 end
+
 
 % ===== Time window =====
 if isempty(tStart)
@@ -49,18 +62,17 @@ end
 plotTime = ForcePlate_time(idx);
 plotData = ForcePlate_data(chToPlot, idx);
 
-% ===== Downsample for plotting only =====
-step = max(1, ceil(length(plotTime) / maxPlotPoints));
-plotTime = plotTime(1:step:end);
-plotData = plotData(:, 1:step:end);
 
-% ===== Normalize option =====
+% ===== Display mode =====
 if normalizeChannels
+
     displayData = zeros(size(plotData));
 
     for ch = 1:size(plotData,1)
+
         sig = plotData(ch,:);
-        sig = sig - mean(sig, 'omitnan');
+        sig = sig - median(sig, 'omitnan');
+
         scaleVal = max(abs(sig), [], 'omitnan');
 
         if isempty(scaleVal) || scaleVal == 0 || isnan(scaleVal)
@@ -70,109 +82,200 @@ if normalizeChannels
         displayData(ch,:) = sig ./ scaleVal;
     end
 
-    offsetAmount = 3;
+    displayScale = 1;
+    offsetAmount = 2.5;
+
     yAxisText = 'Force plate channels, normalized and offset';
+    titleText = 'Force Plate Data With Markers — Normalized';
 
 else
-    displayData = plotData;
 
-    channelRanges = max(plotData, [], 2, 'omitnan') - min(plotData, [], 2, 'omitnan');
-    typicalRange = median(channelRanges, 'omitnan');
+    channelBaselines = median(plotData, 2, 'omitnan');
+    displayData = plotData - channelBaselines;
 
-    if isempty(typicalRange) || typicalRange == 0 || isnan(typicalRange)
-        typicalRange = max(abs(plotData(:)), [], 'omitnan');
+    displayScale = yScale;
+    offsetAmount = 2.5 * yScale;
+
+    yAxisText = sprintf( ...
+        'Force plate channels, amplitude preserved and offset (%s)', ...
+        signalUnit);
+
+    titleText = sprintf( ...
+        'Force Plate Data With Markers — Scale: %s%g %s', ...
+        char(177), yScale, signalUnit);
+
+    maximumAmplitudeByChannel = ...
+        max(abs(displayData), [], 2, 'omitnan');
+
+    if any(maximumAmplitudeByChannel > yScale)
+
+        warning([ ...
+            'One or more channels exceed the selected +/- %g %s ' ...
+            'display scale. Increase yScale to view a larger range.' ...
+            ], ...
+            yScale, signalUnit);
     end
-
-    if isempty(typicalRange) || typicalRange == 0 || isnan(typicalRange)
-        typicalRange = 1;
-    end
-
-    offsetAmount = 1.25 * typicalRange;
-    yAxisText = 'Force plate channels, raw values with vertical offsets';
 end
+
 
 % ===== Apply vertical offsets =====
 nChannels = size(displayData,1);
-offsets = (nChannels - (1:nChannels))' * offsetAmount;
+
+offsets = ...
+    (nChannels - (1:nChannels))' * offsetAmount;
+
 displayWithOffset = displayData + offsets;
 
-figure('Name','Force Plate Data With Markers','NumberTitle','off');
+
+% ===== Create figure =====
+figure( ...
+    'Name', 'Force Plate Data With Markers', ...
+    'NumberTitle', 'off');
+
 hold on;
 
+
+% ===== Plot force plate data =====
 for ch = 1:nChannels
     plot(plotTime, displayWithOffset(ch,:));
 end
 
-% ===== Add markers and save marker handles =====
+
+% ===== Plot limits =====
+yMin = -displayScale;
+
+yMax = ...
+    (nChannels - 1) * offsetAmount + displayScale;
+
+
+% ===== Add markers =====
 markerHandles = gobjects(0);
 
-if exist('MarkerTable','var') && height(MarkerTable) > 0
-    markerIdx = MarkerTable.Time_seconds >= tStart & MarkerTable.Time_seconds <= tEnd;
-    markerTimes = MarkerTable.Time_seconds(markerIdx);
-    markerLabels = string(MarkerTable.Marker_Label(markerIdx));
+if exist('MarkerTable','var') && ...
+        istable(MarkerTable) && ...
+        height(MarkerTable) > 0
 
-    if normalizeChannels
-        yMin = -offsetAmount;
-        yMax = nChannels * offsetAmount;
-        yRange = yMax - yMin;
-        markerTextY = yMax - 0.5*offsetAmount;
-    else
-        yMin = min(displayWithOffset(:), [], 'omitnan');
-        yMax = max(displayWithOffset(:), [], 'omitnan');
-        yRange = yMax - yMin;
+    markerIdx = ...
+        MarkerTable.Time_seconds >= tStart & ...
+        MarkerTable.Time_seconds <= tEnd;
 
-        if isempty(yRange) || yRange == 0 || isnan(yRange)
-            yRange = 1;
-        end
+    markerTimes = ...
+        MarkerTable.Time_seconds(markerIdx);
 
-        markerTextY = yMax + 0.03*yRange;
-    end
+    markerLabels = string( ...
+        MarkerTable.Marker_Label(markerIdx));
+
+    markerTextY = yMax - 0.2 * displayScale;
 
     for m = 1:length(markerTimes)
+
         hLine = xline(markerTimes(m), '--');
         markerHandles(end+1) = hLine;
 
         if showMarkerLabels
-            hText = text(markerTimes(m), markerTextY, markerLabels(m), ...
+
+            hText = text( ...
+                markerTimes(m), ...
+                markerTextY, ...
+                markerLabels(m), ...
                 'Rotation', 90, ...
                 'FontSize', 8, ...
-                'HorizontalAlignment', 'right');
+                'HorizontalAlignment', 'right', ...
+                'VerticalAlignment', 'top');
+
             markerHandles(end+1) = hText;
         end
     end
-
-    if normalizeChannels
-        ylim([-offsetAmount, nChannels * offsetAmount]);
-    else
-        ylim([yMin - 0.05*yRange, yMax + 0.20*yRange]);
-    end
 end
 
+
+% ===== Add vertical scale bar =====
+xRange = tEnd - tStart;
+scaleBarX = tEnd - 0.025 * xRange;
+
+scaleBarBottom = -0.5 * displayScale;
+scaleBarTop = 0.5 * displayScale;
+
+plot( ...
+    [scaleBarX scaleBarX], ...
+    [scaleBarBottom scaleBarTop], ...
+    'k', ...
+    'LineWidth', 3);
+
+if normalizeChannels
+
+    scaleBarLabel = '1 normalized unit';
+
+else
+
+    scaleBarLabel = sprintf( ...
+        '%g %s', ...
+        yScale, signalUnit);
+end
+
+text( ...
+    scaleBarX - 0.01 * xRange, ...
+    mean([scaleBarBottom scaleBarTop]), ...
+    scaleBarLabel, ...
+    'FontWeight', 'bold', ...
+    'HorizontalAlignment', 'right', ...
+    'VerticalAlignment', 'middle');
+
+
+% ===== Format plot =====
 hold off;
 grid on;
+
 xlabel('Time (s)');
 ylabel(yAxisText);
-title('Force Plate Data With Markers');
-xlim([tStart tEnd]);
+title(titleText);
 
-% ===== Add y-axis channel labels =====
+xlim([tStart tEnd]);
+ylim([yMin yMax]);
+
+
+% ===== Channel labels =====
 ytickPositions = offsets;
 
-[ytickPositionsSorted, sortIdx] = sort(ytickPositions);
+[ytickPositionsSorted, sortIdx] = ...
+    sort(ytickPositions);
+
 lineLabelsSorted = lineLabels(sortIdx);
 
 yticks(ytickPositionsSorted);
 yticklabels(lineLabelsSorted);
 
-if normalizeChannels
-    ylim([-offsetAmount, nChannels * offsetAmount]);
-end
 
 % ===== Marker visibility checkbox =====
-uicontrol('Style','checkbox', ...
-    'String','Show markers', ...
-    'Value',1, ...
-    'Units','normalized', ...
-    'Position',[0.82 0.94 0.15 0.04], ...
-    'UserData',markerHandles, ...
-    'Callback','h=get(gcbo,''UserData''); if ~isempty(h), if get(gcbo,''Value''), set(h,''Visible'',''on''); else, set(h,''Visible'',''off''); end; end');
+uicontrol( ...
+    'Style', 'checkbox', ...
+    'String', 'Show markers', ...
+    'Value', 1, ...
+    'Units', 'normalized', ...
+    'Position', [0.82 0.94 0.15 0.04], ...
+    'UserData', markerHandles, ...
+    'Callback', ...
+    ['h=get(gcbo,''UserData''); ' ...
+     'if ~isempty(h), ' ...
+     'if get(gcbo,''Value''), ' ...
+     'set(h,''Visible'',''on''); ' ...
+     'else, ' ...
+     'set(h,''Visible'',''off''); ' ...
+     'end; end']);
+
+
+% ===== Plot information =====
+fprintf('\nForce plate plot created.\n');
+fprintf('Displayed time range: %.3f to %.3f seconds\n', ...
+    tStart, tEnd);
+
+fprintf('Samples plotted per channel: %d\n', ...
+    numel(plotTime));
+
+if normalizeChannels
+    fprintf('Display mode: normalized\n');
+else
+    fprintf('Display mode: amplitude preserved\n');
+    fprintf('Display scale: +/- %g %s\n', ...
+        yScale, signalUnit);
+end
