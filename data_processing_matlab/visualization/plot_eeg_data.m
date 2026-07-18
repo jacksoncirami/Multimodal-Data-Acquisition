@@ -1,33 +1,59 @@
-% ===== Adjustable settings =====
-tStart = [];
-tEnd   = [];
+%% plot_eeg_data
+% Plot selected EEG channels over a chosen time range with optional
+% normalization, vertical offsets, event markers, and marker labels.
+%
+% Required workspace variables:
+%   - EEG_data
+%   - EEG_time
+%
+% Optional workspace variables:
+%   - EEG_channel_labels
+%   - MarkerTable
+%
+% Output:
+%   - One EEG figure with vertically offset channels
+%   - Optional event-marker lines and labels
+%
+% Usage:
+%   Load the organized multimodal MAT file, adjust the settings below, and
+%   run the script.
 
-chToPlot = 1:size(EEG_data,1);
+%% User Settings
+
+% Adjust the time range, channels, marker display, and vertical scale for
+% the recording being viewed.
+tStart = [];
+tEnd = [];
+
+chToPlot = 1:size(EEG_data, 1);
 showMarkerLabels = true;
 
-normalizeChannels = false;  % true = normalized, false = amplitude preserved
+% true = normalize each channel for visualization
+% false = preserve signal amplitude after removing the channel median
+normalizeChannels = false;
 
-yScale = 1000;               % Visible range around each channel: +/- yScale
+% Visible range around each channel baseline when amplitude is preserved.
+yScale = 1000;
 signalUnit = '\muV';
 
+%% Validate the Selected Channels
 
-% ===== Check selected channels =====
 if isempty(chToPlot) || ...
         min(chToPlot) < 1 || ...
-        max(chToPlot) > size(EEG_data,1)
+        max(chToPlot) > size(EEG_data, 1)
 
     error('chToPlot contains an invalid EEG channel number.');
 end
 
+%% Build Channel Labels
 
-% ===== Channel labels =====
 lineLabels = strings(1, numel(chToPlot));
 
 for k = 1:numel(chToPlot)
 
     thisCh = chToPlot(k);
 
-    if exist('EEG_channel_labels','var') && ...
+    if exist('EEG_channel_labels', 'var') && ...
             numel(EEG_channel_labels) >= thisCh
 
         thisLabel = string(EEG_channel_labels(thisCh));
@@ -43,8 +69,10 @@ for k = 1:numel(chToPlot)
     lineLabels(k) = thisLabel;
 end
 
+%% Select the Time Window
 
-% ===== Time window =====
+% Empty start or end values use the full available recording range.
+
 if isempty(tStart)
     tStart = EEG_time(1);
 end
@@ -62,15 +90,15 @@ end
 plotTime = EEG_time(idx);
 plotData = EEG_data(chToPlot, idx);
 
+%% Prepare the Display Data
 
-% ===== Display mode =====
 if normalizeChannels
 
     displayData = zeros(size(plotData));
 
-    for ch = 1:size(plotData,1)
+    for ch = 1:size(plotData, 1)
 
-        sig = plotData(ch,:);
+        sig = plotData(ch, :);
         sig = sig - median(sig, 'omitnan');
 
         scaleVal = max(abs(sig), [], 'omitnan');
@@ -79,7 +107,7 @@ if normalizeChannels
             scaleVal = 1;
         end
 
-        displayData(ch,:) = sig ./ scaleVal;
+        displayData(ch, :) = sig ./ scaleVal;
     end
 
     displayScale = 1;
@@ -117,41 +145,41 @@ else
     end
 end
 
+%% Apply Vertical Offsets
 
-% ===== Apply vertical offsets =====
-nChannels = size(displayData,1);
+nChannels = size(displayData, 1);
 
 offsets = ...
     (nChannels - (1:nChannels))' * offsetAmount;
 
 displayWithOffset = displayData + offsets;
 
+%% Create the Figure
 
-% ===== Create figure =====
 figure( ...
     'Name', 'EEG Data With Markers', ...
     'NumberTitle', 'off');
 
 hold on;
 
+%% Plot the EEG Channels
 
-% ===== Plot EEG data =====
 for ch = 1:nChannels
-    plot(plotTime, displayWithOffset(ch,:));
+    plot(plotTime, displayWithOffset(ch, :));
 end
 
+%% Set Plot Limits
 
-% ===== Plot limits =====
 yMin = -displayScale;
 
 yMax = ...
     (nChannels - 1) * offsetAmount + displayScale;
 
+%% Add Event Markers
 
-% ===== Add markers =====
 markerHandles = gobjects(0);
 
-if exist('MarkerTable','var') && ...
+if exist('MarkerTable', 'var') && ...
         istable(MarkerTable) && ...
         height(MarkerTable) > 0
 
@@ -188,8 +216,8 @@ if exist('MarkerTable','var') && ...
     end
 end
 
+%% Add a Vertical Scale Bar
 
-% ===== Add vertical scale bar =====
 xRange = tEnd - tStart;
 scaleBarX = tEnd - 0.025 * xRange;
 
@@ -221,8 +249,8 @@ text( ...
     'HorizontalAlignment', 'right', ...
     'VerticalAlignment', 'middle');
 
+%% Format the Plot
 
-% ===== Format plot =====
 hold off;
 grid on;
 
@@ -233,8 +261,8 @@ title(titleText);
 xlim([tStart tEnd]);
 ylim([yMin yMax]);
 
+%% Add Channel Labels
 
-% ===== Channel labels =====
 ytickPositions = offsets;
 
 [ytickPositionsSorted, sortIdx] = ...
@@ -245,8 +273,10 @@ lineLabelsSorted = lineLabels(sortIdx);
 yticks(ytickPositionsSorted);
 yticklabels(lineLabelsSorted);
 
+%% Add the Marker Visibility Checkbox
 
-% ===== Marker visibility checkbox =====
+% The checkbox controls all marker lines and text objects created above.
+
 uicontrol( ...
     'Style', 'checkbox', ...
     'String', 'Show markers', ...
@@ -263,8 +293,8 @@ uicontrol( ...
      'set(h,''Visible'',''off''); ' ...
      'end; end']);
 
+%% Display Plot Information
 
-% ===== Plot information =====
 fprintf('\nEEG plot created.\n');
 fprintf('Displayed time range: %.3f to %.3f seconds\n', ...
     tStart, tEnd);
