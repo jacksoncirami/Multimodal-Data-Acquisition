@@ -14,8 +14,7 @@
 % integration route and the assumptions that were tested. It is not the
 % working Bertec acquisition solution used by this repository.
 %
-% See bertecsdk_lsl_bridge.cs for the functioning bridge based on the
-% Bertec SDK and C#.
+% See bertecsdk_lsl_bridge.cs for the functioning Bertec SDK and C# bridge.
 %
 % Assumptions made by this experiment:
 %   - A Bertec application exposes continuous raw force-plate data through
