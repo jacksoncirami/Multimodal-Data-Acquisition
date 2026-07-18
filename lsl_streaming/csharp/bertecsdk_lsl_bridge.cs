@@ -329,7 +329,7 @@ namespace BertecExampleNET
                 outputChannelNames.Length,
                 SAMPLE_RATE_HZ,
                 LSL.channel_format_t.cf_float32,
-                "bertec_force_plate_tared_cop_cog_est_001"
+                "bertec_force_plate_001"
             );
 
             LSL.XMLElement channels =
