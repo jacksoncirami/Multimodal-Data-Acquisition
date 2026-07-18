@@ -44,7 +44,6 @@ enabled and that the Delsys_Trigno_EMG stream appears correctly in
 LabRecorder.
 """
 
-from pathlib import Path
 import time
 
 import numpy as np
@@ -98,7 +97,7 @@ print("Scanning sensors...")
 try:
     # Use the scan call found in the Delsys example-application workflow.
     trig.ScanSensors(False, []).Result
-except Exception as e:
+except Exception:
     print("First scan method failed, trying alternate scan...")
 
     try:
