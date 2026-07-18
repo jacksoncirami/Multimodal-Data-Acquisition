@@ -1,36 +1,64 @@
-% ===== Adjustable settings =====
-tStart = [];
-tEnd   = [];
+%% plot_emg_data
+% Plot selected EMG channels over a chosen time range with optional RMS
+% processing, normalization, vertical offsets, event markers, and labels.
+%
+% Required workspace variables:
+%   - EMG_data
+%   - EMG_time
+%
+% Optional workspace variables:
+%   - EMG_channel_labels
+%   - MarkerTable
+%
+% Output:
+%   - One EMG figure with vertically offset channels
+%   - Optional event-marker lines and labels
+%
+% Usage:
+%   Load the organized multimodal MAT file, adjust the settings below, and
+%   run the script.
 
-chToPlot = 1:size(EMG_data,1);
+%% User Settings
+
+% Adjust the time range, channels, signal view, marker display, and vertical
+% scale for the recording being viewed.
+tStart = [];
+tEnd = [];
+
+chToPlot = 1:size(EMG_data, 1);
 showMarkerLabels = true;
 
-plotRMS = false;                 % false = raw EMG, true = RMS envelope
-rmsWindowSeconds = 0.050;        % RMS window length in seconds
+% false = raw EMG
+% true = RMS envelope
+plotRMS = false;
+rmsWindowSeconds = 0.050;
 
-normalizeChannels = false;       % true = normalized, false = amplitude preserved
+% true = normalize each channel for visualization
+% false = preserve signal amplitude
+normalizeChannels = false;
 
-yScale = 1;                      % Visible range around each channel: +/- yScale
+% Visible range around each channel baseline when amplitude is preserved.
+yScale = 1;
 signalUnit = 'mV';
 
+%% Validate the Selected Channels
 
-% ===== Check selected channels =====
 if isempty(chToPlot) || ...
         min(chToPlot) < 1 || ...
-        max(chToPlot) > size(EMG_data,1)
+        max(chToPlot) > size(EMG_data, 1)
 
     error('chToPlot contains an invalid EMG channel number.');
 end
 
+%% Build Channel Labels
 
-% ===== Channel labels =====
 lineLabels = strings(1, numel(chToPlot));
 
 for k = 1:numel(chToPlot)
 
     thisCh = chToPlot(k);
 
-    if exist('EMG_channel_labels','var') && ...
+    if exist('EMG_channel_labels', 'var') && ...
             numel(EMG_channel_labels) >= thisCh
 
         thisLabel = string(EMG_channel_labels(thisCh));
@@ -46,8 +74,10 @@ for k = 1:numel(chToPlot)
     lineLabels(k) = thisLabel;
 end
 
+%% Select the Time Window
 
-% ===== Time window =====
+% Empty start or end values use the full available recording range.
+
 if isempty(tStart)
     tStart = EMG_time(1);
 end
@@ -65,8 +95,8 @@ end
 plotTime = EMG_time(idx);
 plotData = EMG_data(chToPlot, idx);
 
+%% Calculate the Optional RMS Envelope
 
-% ===== Optional RMS envelope =====
 if plotRMS
 
     dt = median(diff(EMG_time), 'omitnan');
@@ -81,22 +111,22 @@ if plotRMS
         1, ...
         round(rmsWindowSeconds * EMG_srate_est));
 
-    for ch = 1:size(plotData,1)
+    for ch = 1:size(plotData, 1)
 
-        plotData(ch,:) = sqrt( ...
-            movmean(plotData(ch,:).^2, rmsWindowSamples));
+        plotData(ch, :) = sqrt( ...
+            movmean(plotData(ch, :).^2, rmsWindowSamples));
     end
 end
 
+%% Prepare the Display Data
 
-% ===== Display mode =====
 if normalizeChannels
 
     displayData = zeros(size(plotData));
 
-    for ch = 1:size(plotData,1)
+    for ch = 1:size(plotData, 1)
 
-        sig = plotData(ch,:);
+        sig = plotData(ch, :);
         sig = sig - median(sig, 'omitnan');
 
         scaleVal = max(abs(sig), [], 'omitnan');
@@ -105,7 +135,7 @@ if normalizeChannels
             scaleVal = 1;
         end
 
-        displayData(ch,:) = sig ./ scaleVal;
+        displayData(ch, :) = sig ./ scaleVal;
     end
 
     displayScale = 1;
@@ -168,41 +198,41 @@ else
     end
 end
 
+%% Apply Vertical Offsets
 
-% ===== Apply vertical offsets =====
-nChannels = size(displayData,1);
+nChannels = size(displayData, 1);
 
 offsets = ...
     (nChannels - (1:nChannels))' * offsetAmount;
 
 displayWithOffset = displayData + offsets;
 
+%% Create the Figure
 
-% ===== Create figure =====
 figure( ...
     'Name', 'EMG Data With Markers', ...
     'NumberTitle', 'off');
 
 hold on;
 
+%% Plot the EMG Channels
 
-% ===== Plot EMG data =====
 for ch = 1:nChannels
-    plot(plotTime, displayWithOffset(ch,:));
+    plot(plotTime, displayWithOffset(ch, :));
 end
 
+%% Set Plot Limits
 
-% ===== Plot limits =====
 yMin = -displayScale;
 
 yMax = ...
     (nChannels - 1) * offsetAmount + displayScale;
 
+%% Add Event Markers
 
-% ===== Add markers =====
 markerHandles = gobjects(0);
 
-if exist('MarkerTable','var') && ...
+if exist('MarkerTable', 'var') && ...
         istable(MarkerTable) && ...
         height(MarkerTable) > 0
 
@@ -239,8 +269,8 @@ if exist('MarkerTable','var') && ...
     end
 end
 
+%% Add a Vertical Scale Bar
 
-% ===== Add vertical scale bar =====
 xRange = tEnd - tStart;
 scaleBarX = tEnd - 0.025 * xRange;
 
@@ -272,8 +302,8 @@ text( ...
     'HorizontalAlignment', 'right', ...
     'VerticalAlignment', 'middle');
 
+%% Format the Plot
 
-% ===== Format plot =====
 hold off;
 grid on;
 
@@ -284,8 +314,8 @@ title(titleText);
 xlim([tStart tEnd]);
 ylim([yMin yMax]);
 
+%% Add Channel Labels
 
-% ===== Channel labels =====
 ytickPositions = offsets;
 
 [ytickPositionsSorted, sortIdx] = ...
@@ -296,8 +326,10 @@ lineLabelsSorted = lineLabels(sortIdx);
 yticks(ytickPositionsSorted);
 yticklabels(lineLabelsSorted);
 
+%% Add the Marker Visibility Checkbox
 
-% ===== Marker visibility checkbox =====
+% The checkbox controls all marker lines and text objects created above.
+
 uicontrol( ...
     'Style', 'checkbox', ...
     'String', 'Show markers', ...
@@ -314,8 +346,8 @@ uicontrol( ...
      'set(h,''Visible'',''off''); ' ...
      'end; end']);
 
+%% Display Plot Information
 
-% ===== Plot information =====
 fprintf('\nEMG plot created.\n');
 fprintf('Displayed time range: %.3f to %.3f seconds\n', ...
     tStart, tEnd);
