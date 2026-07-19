@@ -28,9 +28,6 @@ It depends on manufacturer-provided Delsys API files, assemblies, packages,
 and credentials that are not included in this repository. Future users must
 obtain authorized access to those materials from Delsys.
 
-Do not copy or redistribute proprietary Delsys API files, license files,
-keys, or credentials through this repository.
-
 ## Requirements
 
 The tested workflow requires:
@@ -49,9 +46,6 @@ The tested workflow requires:
 - LabRecorder or another compatible LSL recording application
 
 ## Tested Software Versions
-
-Complete this section using the versions installed on the acquisition
-computer.
 
 | Component | Tested version |
 |---|---|
@@ -78,3 +72,4 @@ required by the following imports and assembly reference:
 from Aero import AeroPy
 from AeroPy.TrignoBase import key, license
 clr.AddReference("resources\\DelsysAPI")
+```
