@@ -7,43 +7,35 @@ namespace BertecExampleNET
     /*
      * Bertec Force Plate to Lab Streaming Layer Bridge
      *
-     * Connects to the Bertec SDK, reads force and moment channels, performs
-     * a software tare, calculates center-of-pressure values, estimates
-     * center-of-gravity position, and streams the results through LSL.
+     * Connects to the Bertec SDK, acquires force and moment data from a
+     * Bertec force plate, performs a software tare, calculates
+     * center-of-pressure (COP) values, estimates center-of-gravity (COG)
+     * position, and streams the results through Lab Streaming Layer (LSL).
      *
-     * Project Setup Requirements:
+     * Requirements:
+     * - Microsoft Visual Studio
+     * - Bertec SDK
+     * - BertecDeviceNET reference
+     * - LSL C# wrapper (e.g., LSL.cs)
+     * - lsl.dll
+     * - Compatible x86/x64 build configuration
      *
-     * This source file must be used inside a compatible Visual Studio
-     * C# project. The project must also include:
-     *
-     * - The LSL C# wrapper file, such as LSL.cs
-     * - The native lsl.dll file available to the built application
-     * - A reference to BertecDeviceNET
-     * - The required Bertec SDK DLLs
-     * - The correct x86 or x64 build configuration for the installed
-     *   Bertec and LSL libraries
-     *
-     * These dependencies are configured through the Visual Studio project
-     * and Solution Explorer. They are not contained inside this source file.
-     *
-     * Proprietary Bertec SDK files and license-protected components are not
-     * included in this repository. Users must obtain them from Bertec.
-     *
-     * Before Use:
-     *
-     * - Confirm that the required Bertec channel names match the connected
-     *   force-plate configuration.
-     * - Confirm the expected sampling rate.
-     * - Keep the force plate empty during the software-tare period.
+     * Before use:
+     * - Verify that the required Bertec SDK channel names match the
+     *   connected force-plate configuration.
+     * - Confirm the sampling rate matches the hardware configuration.
+     * - Keep the force plate unloaded during the software-tare period.
      * - Enter the participant's height when prompted.
-     * - Verify the LSL stream in LabRecorder before recording.
+     * - Confirm that the BertecForcePlate stream appears in LabRecorder.
      *
-     * Important:
+     * See README.md in this folder for complete setup, configuration,
+     * dependencies, and tested software versions.
      *
-     * - COGX_est, COGY_est, and COG_est are estimated values.
-     * - They are not direct force-plate measurements.
+     * Notes:
+     * - COGX_est, COGY_est, and COG_est are estimated values derived from
+     *   the measured force-plate data and are not direct measurements.
      */
-    class SimpleFZReaderExample
+    class BertecForcePlateLSLBridge
     {
         // Bertec SDK connection.
         BertecDeviceNET.BertecDevice theHandle = null;
@@ -113,7 +105,7 @@ namespace BertecExampleNET
 
         static void Main(string[] args)
         {
-            SimpleFZReaderExample example = new SimpleFZReaderExample();
+            BertecForcePlateLSLBridge example = new BertecForcePlateLSLBridge();
             example.Run();
         }
 
