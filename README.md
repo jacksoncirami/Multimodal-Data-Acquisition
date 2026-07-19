@@ -1,108 +1,176 @@
 # Multimodal Balance Research Pipeline
 
-This repository contains the acquisition and data-processing scripts developed for a 2026 summer research project at High Point University.
+An open-source, cross-language workflow for acquiring, synchronizing, organizing, and inspecting multimodal physiological and biomechanical data from EEG, EMG, force-plate, and experimental event-marker streams.
 
-The system was designed to collect and synchronize:
+The system integrates manufacturer-specific acquisition tools with [Lab Streaming Layer (LSL)](https://labstreaminglayer.org/) so that all streams can be recorded together in LabRecorder as a single XDF session. MATLAB scripts then organize the recording, preserve stream timing and metadata, prepare EEG data for EEGLAB, and support multimodal visualization and signal-quality analysis.
 
-- OpenBCI EEG data
-- Delsys Trigno EMG data
-- Bertec force-plate data
-- Experimental event markers
+This repository was developed during the 2026 Summer Undergraduate Research Experience at High Point University.
 
-Lab Streaming Layer (LSL) is used to send the data streams to LabRecorder, where they are recorded together in XDF format. MATLAB scripts are then used to organize, inspect, and visualize the recorded data.
-
-## System Workflow
+## System Overview
 
 ```mermaid
 flowchart LR
-    EEG["OpenBCI EEG"] --> LSL["Lab Streaming Layer"]
-    EMG["Delsys EMG<br/>Python bridge"] --> LSL
-    FP["Bertec force plate<br/>C# bridge"] --> LSL
-    MK["MATLAB event markers"] --> LSL
+    EEG["OpenBCI EEG\nOpenBCI GUI"] --> LSL["Lab Streaming Layer"]
+    EMG["Delsys Trigno EMG\nPython bridge"] --> LSL
+    FP["Bertec force plate\nC# bridge"] --> LSL
+    MK["Experimental markers\nMATLAB interfaces"] --> LSL
 
     LSL --> LR["LabRecorder"]
-    LR --> XDF["XDF recording"]
-    XDF --> ORG["MATLAB organization script"]
+    LR --> XDF["Synchronized XDF recording"]
+    XDF --> ORG["MATLAB organization pipeline"]
 
-    ORG --> EEGDATA["EEG data"]
+    ORG --> EEGDATA["EEG data and events"]
     ORG --> EMGDATA["EMG data"]
     ORG --> FPDATA["Force-plate data"]
-    ORG --> MARKERS["Marker table"]
+    ORG --> MARKERS["Combined marker tables"]
 
-    EEGDATA --> EEGLAB["EEGLAB / MATLAB"]
-    EMGDATA --> EMGPLOT["MATLAB visualization"]
-    FPDATA --> FPPLOT["MATLAB visualization"]
+    EEGDATA --> EEGLAB["EEGLAB preprocessing"]
+    EEGDATA --> VIS["MATLAB visualization and analysis"]
+    EMGDATA --> VIS
+    FPDATA --> VIS
+    MARKERS --> VIS
 ```
 
-## Repository Structure
+## Repository Contents
 
-### `lsl_streaming`
+```text
+Multimodal-Balance/
+├── lsl_streaming/
+│   ├── python/          Delsys Trigno EMG-to-LSL bridge
+│   ├── matlab/          Task and MVC event-marker interfaces
+│   ├── csharp/          Bertec force-plate-to-LSL bridge and test utility
+│   └── experimental/    Earlier prototypes and alternate approaches
+├── data_processing/
+│   ├── eeglab/          EEG import and EEGLAB helper scripts
+│   ├── visualization/   EEG, EMG, force-plate, and frequency-analysis scripts
+│   └── organize_multimodal_xdf.m
+└── README.md
+```
 
-Contains the scripts used during data collection.
+| Component | Purpose | Documentation |
+|---|---|---|
+| Delsys Python bridge | Detects enabled Delsys Trigno EMG channels and broadcasts them through LSL | [`lsl_streaming/python/`](lsl_streaming/python/) |
+| Bertec C# bridge | Acquires Bertec force and moment channels, derives COP/COG estimates, and broadcasts an 18-channel LSL stream | [`lsl_streaming/csharp/`](lsl_streaming/csharp/) |
+| MATLAB marker interfaces | Broadcasts task, artifact, impedance, MVC, rest, and muscle-identification markers | [`lsl_streaming/matlab/`](lsl_streaming/matlab/) |
+| Experimental scripts | Preserves prototype Bertec communication approaches for reference and troubleshooting | [`lsl_streaming/experimental/`](lsl_streaming/experimental/) |
+| Data-processing pipeline | Organizes XDF recordings, imports EEG into EEGLAB, plots each modality, and evaluates frequency content and interference | [`data_processing/`](data_processing/) |
 
-- MATLAB event-marker interfaces
-- Python Delsys EMG-to-LSL bridge
-- C# Bertec force-plate-to-LSL bridge
-- Earlier experimental Bertec connection scripts
+## Core Capabilities
 
-### `data_processing_matlab`
+- Synchronizes EEG, EMG, force-plate, and event-marker streams through LSL.
+- Records all selected streams together in LabRecorder/XDF.
+- Supports separate task and MVC marker streams with fixed names and source IDs.
+- Organizes raw XDF streams into documented MATLAB variables and a combined multimodal structure.
+- Preserves original timestamps, sampling-rate metadata, channel labels, and marker-source information.
+- Exports combined and stream-specific marker tables.
+- Imports organized EEG data and XDF events into EEGLAB using timing derived from the original recording.
+- Provides configurable EEG, EMG, and force-plate plotting scripts with event overlays.
+- Includes frequency-content and 60 Hz interference analysis utilities.
+- Retains experimental integration scripts to document the development process and support future troubleshooting.
 
-Contains the scripts used after recording.
+## Hardware Used During Development
 
-- XDF stream organization
-- EEG, EMG, and force-plate plotting
-- Event-marker visualization
-- Frequency and interference analysis
-- EEG preparation for EEGLAB
+The original research configuration used:
 
-## Hardware
-
-The original research setup used:
-
-- OpenBCI Ultracortex Mark IV
+- OpenBCI Ultracortex Mark IV headset
 - OpenBCI Cyton board
-- Delsys Trigno EMG sensors and Trigno Centro
+- Delsys Trigno sensors with a Trigno Centro receiver
 - Bertec force plate
 
-## Software
+The code may be adaptable to other hardware configurations, but stream metadata, channel names, sampling rates, SDK behavior, and downstream assumptions must be verified before use.
 
-The project was developed using:
+## Software and External Dependencies
 
-| Software | Version or environment |
+The workflow spans several software environments:
+
+| Environment | Primary role |
 |---|---|
-| Windows | Windows 11 |
-| MATLAB | R2026a |
-| EEGLAB | 2026.0.0 |
-| OpenBCI GUI | 6.0.0-beta.1 |
-| Lab Streaming Layer | MATLAB, Python, and C# libraries |
-| Python | Used for the Delsys bridge |
-| Visual Studio / C# | Used for the Bertec bridge |
+| OpenBCI GUI | EEG acquisition and LSL streaming |
+| Python | Delsys Trigno EMG bridge |
+| C# / Visual Studio | Bertec force-plate bridge |
+| MATLAB | Event-marker interfaces, XDF organization, visualization, and analysis |
+| EEGLAB | EEG preprocessing and event-based analysis |
+| LabRecorder | Synchronized XDF recording |
 
-The Delsys API, Bertec SDK, manufacturer libraries, and license credentials are not included in this repository.
+Important external dependencies include:
 
-## General Recording Procedure
+- Lab Streaming Layer libraries for MATLAB, Python, and C#
+- LabRecorder
+- xdf-Matlab
+- EEGLAB
+- Delsys API, Aero/AeroPy resources, and valid credentials
+- Bertec SDK and `BertecDeviceNET`
 
-1. Start the OpenBCI EEG stream.
-2. Start the Delsys Python bridge.
-3. Start the Bertec C# bridge.
-4. Open the MATLAB event-marker interface.
-5. Confirm that all required streams appear in LabRecorder.
-6. Record the session as an XDF file.
-7. Run the MATLAB organization script.
-8. Inspect the EEG, EMG, force-plate, and marker data.
+Proprietary manufacturer libraries, SDK components, credentials, licenses, and hardware-specific project files are not distributed in this repository. See the README in each component folder for setup requirements and tested versions.
 
-More detailed setup instructions will be added within the individual folders and scripts.
+## Getting Started
 
-## Important Notes
+This repository is a modular research workflow rather than a single executable application. Configure and validate each acquisition component independently before attempting a synchronized recording.
 
-- Local software paths must be updated for each computer.
-- Stream names, channel counts, and sampling rates should be checked before every recording.
-- Calculated force-plate variables are not all direct measurements.
-- Manufacturer APIs and SDKs may change between software versions.
+### 1. Configure the acquisition streams
 
-## Project Status
+Follow the component-specific instructions:
 
-The repository structure and documentation are currently being improved. The scripts were tested in their original locations and will be revalidated after the recent file and folder reorganization.
+- [`lsl_streaming/python/README.md`](lsl_streaming/python/README.md) — Delsys EMG bridge
+- [`lsl_streaming/matlab/README.md`](lsl_streaming/matlab/README.md) — Event-marker interfaces
+- [`lsl_streaming/csharp/README.md`](lsl_streaming/csharp/README.md) — Bertec force-plate bridge
+
+The OpenBCI EEG stream is configured through the OpenBCI GUI and is not generated by a custom script in this repository.
+
+### 2. Validate the streams in LabRecorder
+
+Before recording, confirm that the required streams are visible and that their names, source IDs, channel counts, channel order, sampling rates, and data types match the intended configuration.
+
+The custom streams use the following default names:
+
+| Stream | Default name |
+|---|---|
+| Delsys EMG | `Delsys_Trigno_EMG` |
+| Bertec force plate | `BertecForcePlate` |
+| Task markers | `TaskMarkers` |
+| MVC markers | `MVCMarkers` |
+
+The OpenBCI stream name depends on the OpenBCI GUI configuration.
+
+### 3. Record a synchronized session
+
+Start each required acquisition component, verify live data and marker events, and record the selected streams together in LabRecorder as an XDF file.
+
+### 4. Organize the XDF recording
+
+Run:
+
+```matlab
+organize_multimodal_xdf
+```
+
+The script displays the streams in the selected XDF file, prompts for the EEG, EMG, force-plate, and marker stream numbers, and saves organized MATLAB and CSV outputs.
+
+### 5. Process and inspect the data
+
+Use the scripts in [`data_processing/`](data_processing/) to:
+
+- import EEG data and events into EEGLAB;
+- visualize EEG, EMG, and force-plate channels;
+- overlay event markers;
+- inspect frequency content; and
+- evaluate possible 60 Hz electrical interference.
+
+## Important Use Notes
+
+- Update all local library, SDK, and resource paths before running the scripts.
+- Do not assume that manufacturer APIs, channel names, or example-application structures are identical across software versions.
+- Keep the Bertec force plate unloaded during the software-tare period.
+- Confirm the fixed Bertec output-channel order before using downstream analyses.
+- The Bertec COG outputs are estimates derived from force-plate data, not direct measurements.
+- Verify that enabled Delsys channels share the expected sampling configuration before recording.
+- Inspect the complete XDF stream list before selecting stream indices during organization.
+
+## Project Scope
+
+This repository documents the acquisition and processing infrastructure developed for a multimodal balance-research. It is intended to support adaptation, troubleshooting, and future development across changing vendor software and hardware environments.
+
+The scripts are research tools and should be independently validated for each laboratory configuration before they are used for formal data collection or analysis.
 
 ## Author
 
@@ -110,4 +178,4 @@ The repository structure and documentation are currently being improved. The scr
 Mechanical Engineering  
 High Point University
 
-Developed during the 2026 Summer Undergraduate Research Experience under the mentorship of Dr. Neil Petroff.
+Developed during the 2026 Summer Undergraduate Research Experience under the mentorship of **Dr. Neil Petroff**.
