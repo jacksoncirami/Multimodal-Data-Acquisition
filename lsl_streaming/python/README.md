@@ -57,8 +57,8 @@ Delsys installation.
 | Component | Version |
 |---|---|
 | Windows | Windows 11 |
-| Python | |
 | Delsys API | |
+| Python | |
 | pythonnet | |
 | NumPy | |
 | pylsl | |
