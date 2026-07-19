@@ -44,7 +44,8 @@ Multimodal-Balance/
 │   ├── eeglab/          EEG import and EEGLAB helper scripts
 │   ├── visualization/   EEG, EMG, force-plate, and frequency-analysis scripts
 │   └── organize_multimodal_xdf.m
-└── README.md
+├── README.md
+└── LICENSE
 ```
 
 | Component | Purpose | Documentation |
