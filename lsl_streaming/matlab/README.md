@@ -40,7 +40,7 @@ workflow included in this repository.
 | Component | Version |
 |---|---|
 | Windows | Windows 11 |
-| MATLAB | R2026a (26.1.0.3251617 |
+| MATLAB | R2026a (26.1.0.3251617) |
 | liblsl-Matlab | 1.14.0 |
 | LabRecorder | 1.17 |
 
