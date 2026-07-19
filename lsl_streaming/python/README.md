@@ -47,6 +47,7 @@ Delsys installation.
 - NumPy
 - pythonnet
 - pylsl
+- Lab Streaming Layer (LSL)
 - LabRecorder
 
 ---
