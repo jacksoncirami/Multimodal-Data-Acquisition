@@ -1,6 +1,7 @@
 %% mvc_marker_gui
-% Creates a MATLAB graphical interface for sending impedance, MVC, rest,
-% and muscle-label markers to Lab Streaming Layer during data collection.
+% Creates a MATLAB graphical interface for broadcasting impedance, MVC,
+% rest, and muscle-label markers through Lab Streaming Layer (LSL) during
+% data collection.
 %
 % This script creates the MVC-related marker stream:
 %   Name:      MVCMarkers
