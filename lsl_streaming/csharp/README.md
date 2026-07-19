@@ -22,7 +22,7 @@ synchronization workflow included in this repository.
 
 | File | Description |
 |------|-------------|
-| `bertecsdk_lsl_bridge.cs` | Streams Bertec force-plate data through Lab Streaming Layer. |
+| `bertec_force_plate_lsl_bridge.cs` | Streams Bertec force-plate data through Lab Streaming Layer. |
 
 ---
 
