@@ -50,7 +50,7 @@ before the bridge can be compiled or executed.
 - Bertec SDK
 - `BertecDeviceNET`
 - liblsl-Csharp
-- `lsl.cs`
+- `LSL.cs`
 - `lsl.dll`
 - Lab Streaming Layer (LSL)
 - LabRecorder
@@ -140,8 +140,8 @@ are not direct measurements.
 ## Running
 
 Create or open a Visual Studio C# Console Application, add
-`bertec_force_plate_lsl_bridge.cs` and `LSL.cs` to the project, configure
-the required Bertec SDK references, ensure `lsl.dll` is available to the
+`bertec_force_plate_lsl_bridge.cs` and `LSL.cs` to the project, add the
+required Bertec SDK references, ensure `lsl.dll` is available to the
 compiled application, then build and run the project.
 
 Run the executable.
