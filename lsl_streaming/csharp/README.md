@@ -139,8 +139,10 @@ are not direct measurements.
 
 ## Running
 
-Compile the Visual Studio project containing the bridge and the required
-Bertec and LSL dependencies.
+Create or open a Visual Studio C# Console Application, add
+`bertec_force_plate_lsl_bridge.cs` and `LSL.cs` to the project, configure
+the required Bertec SDK references, ensure `lsl.dll` is available to the
+compiled application, then build and run the project.
 
 Run the executable.
 
