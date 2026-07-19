@@ -2,7 +2,7 @@
 
 using System;
 
-namespace BertecExampleNET
+namespace MultimodalBalance
 {
     /*
      * Bertec Force Plate to Lab Streaming Layer Bridge
