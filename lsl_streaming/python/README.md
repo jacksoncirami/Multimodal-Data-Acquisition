@@ -59,10 +59,10 @@ Delsys installation.
 | Windows | Windows 11 |
 | Delsys API | 2.9.7 |
 | Python | 3.14.6 |
-| pythonnet | |
-| NumPy | |
-| pylsl | |
-| .NET runtime | |
+| pythonnet | 3.14.6 |
+| NumPy | 2.5.0 |
+| pylsl | 1.18.2 |
+| .NET runtime | 10.0.10 |
 | LabRecorder | 1.17 |
 
 ---
