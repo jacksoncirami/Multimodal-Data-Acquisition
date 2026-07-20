@@ -65,8 +65,8 @@ before the bridge can be compiled or executed.
 | Windows | Windows 11 |
 | Visual Studio | 18.7.3 |
 | Bertec SDK | 2.56.0.1033 |
-| .NET Runtime | |
-| liblsl-Csharp | |
+| .NET Runtime | 10.0.10 |
+| liblsl-Csharp | 1.14 |
 | LabRecorder | 1.17 |
 
 ---
