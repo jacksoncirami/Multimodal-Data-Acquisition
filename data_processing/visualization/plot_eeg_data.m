@@ -1,102 +1,104 @@
-% ===== Adjustable settings =====
-tStart = [];
-tEnd   = [];
+%% plot_eeg_data
+% Plot selected EEG channels over a chosen time range with optional
+% normalization, vertical offsets, event markers, and marker labels.
+%
+% Required workspace variables:
+%   - EEG_data
+%   - EEG_time
+%
+% Optional workspace variables:
+%   - EEG_channel_labels
+%   - MarkerTable
+%
+% Output:
+%   - One EEG figure with vertically offset channels
+%   - Optional event-marker lines and labels
+%
+% Usage:
+%   Load the organized multimodal MAT file, adjust the settings below, and
+%   run the script.
 
-chToPlot = 1:size(EMG_data,1);
+%% User Settings
+
+% Adjust the time range, channels, marker display, and vertical scale for
+% the recording being viewed.
+tStart = [];
+tEnd = [];
+
+chToPlot = 1:size(EEG_data, 1);
 showMarkerLabels = true;
 
-plotRMS = false;                 % false = raw EMG, true = RMS envelope
-rmsWindowSeconds = 0.050;        % RMS window length in seconds
+% true = normalize each channel for visualization
+% false = preserve signal amplitude after removing the channel median
+normalizeChannels = false;
 
-normalizeChannels = false;       % true = normalized, false = amplitude preserved
+% Visible range around each channel baseline when amplitude is preserved.
+yScale = 1000;
+signalUnit = '\muV';
 
-yScale = 1;                      % Visible range around each channel: +/- yScale
-signalUnit = 'mV';
+%% Validate the Selected Channels
 
-
-% ===== Check selected channels =====
 if isempty(chToPlot) || ...
         min(chToPlot) < 1 || ...
-        max(chToPlot) > size(EMG_data,1)
+        max(chToPlot) > size(EEG_data, 1)
 
-    error('chToPlot contains an invalid EMG channel number.');
+    error('chToPlot contains an invalid EEG channel number.');
 end
 
+%% Build Channel Labels
 
-% ===== Channel labels =====
 lineLabels = strings(1, numel(chToPlot));
 
 for k = 1:numel(chToPlot)
 
     thisCh = chToPlot(k);
 
-    if exist('EMG_channel_labels','var') && ...
-            numel(EMG_channel_labels) >= thisCh
+    if exist('EEG_channel_labels', 'var') && ...
+            numel(EEG_channel_labels) >= thisCh
 
-        thisLabel = string(EMG_channel_labels(thisCh));
+        thisLabel = string(EEG_channel_labels(thisCh));
 
     else
         thisLabel = "";
     end
 
     if strlength(thisLabel) == 0
-        thisLabel = "EMG Ch " + string(thisCh);
+        thisLabel = "EEG Ch " + string(thisCh);
     end
 
     lineLabels(k) = thisLabel;
 end
 
+%% Select the Time Window
 
-% ===== Time window =====
+% Empty start or end values use the full available recording range.
+
 if isempty(tStart)
-    tStart = EMG_time(1);
+    tStart = EEG_time(1);
 end
 
 if isempty(tEnd)
-    tEnd = EMG_time(end);
+    tEnd = EEG_time(end);
 end
 
-idx = EMG_time >= tStart & EMG_time <= tEnd;
+idx = EEG_time >= tStart & EEG_time <= tEnd;
 
 if ~any(idx)
-    error('No EMG data found in the selected time window.');
+    error('No EEG data found in the selected time window.');
 end
 
-plotTime = EMG_time(idx);
-plotData = EMG_data(chToPlot, idx);
+plotTime = EEG_time(idx);
+plotData = EEG_data(chToPlot, idx);
 
+%% Prepare the Display Data
 
-% ===== Optional RMS envelope =====
-if plotRMS
-
-    dt = median(diff(EMG_time), 'omitnan');
-
-    if isempty(dt) || ~isfinite(dt) || dt <= 0
-        error('The EMG sampling interval could not be determined.');
-    end
-
-    EMG_srate_est = 1 / dt;
-
-    rmsWindowSamples = max( ...
-        1, ...
-        round(rmsWindowSeconds * EMG_srate_est));
-
-    for ch = 1:size(plotData,1)
-
-        plotData(ch,:) = sqrt( ...
-            movmean(plotData(ch,:).^2, rmsWindowSamples));
-    end
-end
-
-
-% ===== Display mode =====
 if normalizeChannels
 
     displayData = zeros(size(plotData));
 
-    for ch = 1:size(plotData,1)
+    for ch = 1:size(plotData, 1)
 
-        sig = plotData(ch,:);
+        sig = plotData(ch, :);
         sig = sig - median(sig, 'omitnan');
 
         scaleVal = max(abs(sig), [], 'omitnan');
@@ -105,55 +107,30 @@ if normalizeChannels
             scaleVal = 1;
         end
 
-        displayData(ch,:) = sig ./ scaleVal;
+        displayData(ch, :) = sig ./ scaleVal;
     end
 
     displayScale = 1;
     offsetAmount = 2.5;
 
-    if plotRMS
-        yAxisText = 'EMG RMS channels, normalized and offset';
-        titleText = 'EMG RMS Data With Markers — Normalized';
-    else
-        yAxisText = 'Raw EMG channels, normalized and offset';
-        titleText = 'Raw EMG Data With Markers — Normalized';
-    end
+    yAxisText = 'EEG channels, normalized and offset';
+    titleText = 'EEG Data With Markers — Normalized';
 
 else
 
-    if plotRMS
-
-        displayData = plotData;
-
-    else
-
-        channelBaselines = median(plotData, 2, 'omitnan');
-        displayData = plotData - channelBaselines;
-    end
+    channelBaselines = median(plotData, 2, 'omitnan');
+    displayData = plotData - channelBaselines;
 
     displayScale = yScale;
     offsetAmount = 2.5 * yScale;
 
-    if plotRMS
+    yAxisText = sprintf( ...
+        'EEG channels, amplitude preserved and offset (%s)', ...
+        signalUnit);
 
-        yAxisText = sprintf( ...
-            'EMG RMS channels, amplitude preserved and offset (%s)', ...
-            signalUnit);
-
-        titleText = sprintf( ...
-            'EMG RMS Data With Markers — Scale: %s%g %s', ...
-            char(177), yScale, signalUnit);
-
-    else
-
-        yAxisText = sprintf( ...
-            'Raw EMG channels, amplitude preserved and offset (%s)', ...
-            signalUnit);
-
-        titleText = sprintf( ...
-            'Raw EMG Data With Markers — Scale: %s%g %s', ...
-            char(177), yScale, signalUnit);
-    end
+    titleText = sprintf( ...
+        'EEG Data With Markers — Scale: %s%g %s', ...
+        char(177), yScale, signalUnit);
 
     maximumAmplitudeByChannel = ...
         max(abs(displayData), [], 2, 'omitnan');
@@ -168,41 +145,41 @@ else
     end
 end
 
+%% Apply Vertical Offsets
 
-% ===== Apply vertical offsets =====
-nChannels = size(displayData,1);
+nChannels = size(displayData, 1);
 
 offsets = ...
     (nChannels - (1:nChannels))' * offsetAmount;
 
 displayWithOffset = displayData + offsets;
 
+%% Create the Figure
 
-% ===== Create figure =====
 figure( ...
-    'Name', 'EMG Data With Markers', ...
+    'Name', 'EEG Data With Markers', ...
     'NumberTitle', 'off');
 
 hold on;
 
+%% Plot the EEG Channels
 
-% ===== Plot EMG data =====
 for ch = 1:nChannels
-    plot(plotTime, displayWithOffset(ch,:));
+    plot(plotTime, displayWithOffset(ch, :));
 end
 
+%% Set Plot Limits
 
-% ===== Plot limits =====
 yMin = -displayScale;
 
 yMax = ...
     (nChannels - 1) * offsetAmount + displayScale;
 
+%% Add Event Markers
 
-% ===== Add markers =====
 markerHandles = gobjects(0);
 
-if exist('MarkerTable','var') && ...
+if exist('MarkerTable', 'var') && ...
         istable(MarkerTable) && ...
         height(MarkerTable) > 0
 
@@ -239,8 +216,8 @@ if exist('MarkerTable','var') && ...
     end
 end
 
+%% Add a Vertical Scale Bar
 
-% ===== Add vertical scale bar =====
 xRange = tEnd - tStart;
 scaleBarX = tEnd - 0.025 * xRange;
 
@@ -272,8 +249,8 @@ text( ...
     'HorizontalAlignment', 'right', ...
     'VerticalAlignment', 'middle');
 
+%% Format the Plot
 
-% ===== Format plot =====
 hold off;
 grid on;
 
@@ -284,8 +261,8 @@ title(titleText);
 xlim([tStart tEnd]);
 ylim([yMin yMax]);
 
+%% Add Channel Labels
 
-% ===== Channel labels =====
 ytickPositions = offsets;
 
 [ytickPositionsSorted, sortIdx] = ...
@@ -296,8 +273,10 @@ lineLabelsSorted = lineLabels(sortIdx);
 yticks(ytickPositionsSorted);
 yticklabels(lineLabelsSorted);
 
+%% Add the Marker Visibility Checkbox
 
-% ===== Marker visibility checkbox =====
+% The checkbox controls all marker lines and text objects created above.
+
 uicontrol( ...
     'Style', 'checkbox', ...
     'String', 'Show markers', ...
@@ -314,21 +293,14 @@ uicontrol( ...
      'set(h,''Visible'',''off''); ' ...
      'end; end']);
 
+%% Display Plot Information
 
-% ===== Plot information =====
-fprintf('\nEMG plot created.\n');
+fprintf('\nEEG plot created.\n');
 fprintf('Displayed time range: %.3f to %.3f seconds\n', ...
     tStart, tEnd);
 
 fprintf('Samples plotted per channel: %d\n', ...
     numel(plotTime));
-
-if plotRMS
-    fprintf('Signal view: RMS envelope\n');
-    fprintf('RMS window: %.3f seconds\n', rmsWindowSeconds);
-else
-    fprintf('Signal view: raw EMG\n');
-end
 
 if normalizeChannels
     fprintf('Display mode: normalized\n');

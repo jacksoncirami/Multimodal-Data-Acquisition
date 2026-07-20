@@ -1,33 +1,59 @@
-% ===== Adjustable settings =====
-tStart = [];
-tEnd   = [];
+%% plot_force_plate_data
+% Plot selected force-plate channels over a chosen time range with optional
+% normalization, vertical offsets, event markers, and marker labels.
+%
+% Required workspace variables:
+%   - ForcePlate_data
+%   - ForcePlate_time
+%
+% Optional workspace variables:
+%   - ForcePlate_channel_labels
+%   - MarkerTable
+%
+% Output:
+%   - One force-plate figure with vertically offset channels
+%   - Optional event-marker lines and labels
+%
+% Usage:
+%   Load the organized multimodal MAT file, adjust the settings below, and
+%   run the script.
 
-chToPlot = 1:size(ForcePlate_data,1);
+%% User Settings
+
+% Adjust the time range, channels, marker display, and vertical scale for
+% the recording being viewed.
+tStart = [];
+tEnd = [];
+
+chToPlot = 1:size(ForcePlate_data, 1);
 showMarkerLabels = true;
 
-normalizeChannels = true;  % true = normalized, false = amplitude preserved
+% true = normalize each channel for visualization
+% false = preserve signal amplitude after removing the channel median
+normalizeChannels = false;
 
-yScale = 100;               % Visible range around each channel: +/- yScale
+% Visible range around each channel baseline when amplitude is preserved.
+yScale = 100;
 signalUnit = 'N';
 
+%% Validate the Selected Channels
 
-% ===== Check selected channels =====
 if isempty(chToPlot) || ...
         min(chToPlot) < 1 || ...
-        max(chToPlot) > size(ForcePlate_data,1)
+        max(chToPlot) > size(ForcePlate_data, 1)
 
     error('chToPlot contains an invalid force plate channel number.');
 end
 
+%% Build Channel Labels
 
-% ===== Channel labels =====
 lineLabels = strings(1, numel(chToPlot));
 
 for k = 1:numel(chToPlot)
 
     thisCh = chToPlot(k);
 
-    if exist('ForcePlate_channel_labels','var') && ...
+    if exist('ForcePlate_channel_labels', 'var') && ...
             numel(ForcePlate_channel_labels) >= thisCh
 
         thisLabel = string(ForcePlate_channel_labels(thisCh));
@@ -43,8 +69,10 @@ for k = 1:numel(chToPlot)
     lineLabels(k) = thisLabel;
 end
 
+%% Select the Time Window
 
-% ===== Time window =====
+% Empty start or end values use the full available recording range.
+
 if isempty(tStart)
     tStart = ForcePlate_time(1);
 end
@@ -62,15 +90,15 @@ end
 plotTime = ForcePlate_time(idx);
 plotData = ForcePlate_data(chToPlot, idx);
 
+%% Prepare the Display Data
 
-% ===== Display mode =====
 if normalizeChannels
 
     displayData = zeros(size(plotData));
 
-    for ch = 1:size(plotData,1)
+    for ch = 1:size(plotData, 1)
 
-        sig = plotData(ch,:);
+        sig = plotData(ch, :);
         sig = sig - median(sig, 'omitnan');
 
         scaleVal = max(abs(sig), [], 'omitnan');
@@ -79,7 +107,7 @@ if normalizeChannels
             scaleVal = 1;
         end
 
-        displayData(ch,:) = sig ./ scaleVal;
+        displayData(ch, :) = sig ./ scaleVal;
     end
 
     displayScale = 1;
@@ -117,41 +145,41 @@ else
     end
 end
 
+%% Apply Vertical Offsets
 
-% ===== Apply vertical offsets =====
-nChannels = size(displayData,1);
+nChannels = size(displayData, 1);
 
 offsets = ...
     (nChannels - (1:nChannels))' * offsetAmount;
 
 displayWithOffset = displayData + offsets;
 
+%% Create the Figure
 
-% ===== Create figure =====
 figure( ...
     'Name', 'Force Plate Data With Markers', ...
     'NumberTitle', 'off');
 
 hold on;
 
+%% Plot the Force-Plate Channels
 
-% ===== Plot force plate data =====
 for ch = 1:nChannels
-    plot(plotTime, displayWithOffset(ch,:));
+    plot(plotTime, displayWithOffset(ch, :));
 end
 
+%% Set Plot Limits
 
-% ===== Plot limits =====
 yMin = -displayScale;
 
 yMax = ...
     (nChannels - 1) * offsetAmount + displayScale;
 
+%% Add Event Markers
 
-% ===== Add markers =====
 markerHandles = gobjects(0);
 
-if exist('MarkerTable','var') && ...
+if exist('MarkerTable', 'var') && ...
         istable(MarkerTable) && ...
         height(MarkerTable) > 0
 
@@ -188,8 +216,8 @@ if exist('MarkerTable','var') && ...
     end
 end
 
+%% Add a Vertical Scale Bar
 
-% ===== Add vertical scale bar =====
 xRange = tEnd - tStart;
 scaleBarX = tEnd - 0.025 * xRange;
 
@@ -221,8 +249,8 @@ text( ...
     'HorizontalAlignment', 'right', ...
     'VerticalAlignment', 'middle');
 
+%% Format the Plot
 
-% ===== Format plot =====
 hold off;
 grid on;
 
@@ -233,8 +261,8 @@ title(titleText);
 xlim([tStart tEnd]);
 ylim([yMin yMax]);
 
+%% Add Channel Labels
 
-% ===== Channel labels =====
 ytickPositions = offsets;
 
 [ytickPositionsSorted, sortIdx] = ...
@@ -245,8 +273,10 @@ lineLabelsSorted = lineLabels(sortIdx);
 yticks(ytickPositionsSorted);
 yticklabels(lineLabelsSorted);
 
+%% Add the Marker Visibility Checkbox
 
-% ===== Marker visibility checkbox =====
+% The checkbox controls all marker lines and text objects created above.
+
 uicontrol( ...
     'Style', 'checkbox', ...
     'String', 'Show markers', ...
@@ -263,8 +293,8 @@ uicontrol( ...
      'set(h,''Visible'',''off''); ' ...
      'end; end']);
 
+%% Display Plot Information
 
-% ===== Plot information =====
 fprintf('\nForce plate plot created.\n');
 fprintf('Displayed time range: %.3f to %.3f seconds\n', ...
     tStart, tEnd);
