@@ -1,4 +1,4 @@
-# Multimodal Balance Research Pipeline
+# Multimodal Data Acquisition Pipeline
 
 An open-source, cross-language workflow for acquiring, synchronizing, organizing, and inspecting multimodal physiological and biomechanical data from EEG, EMG, force-plate, and experimental event-marker streams.
 
