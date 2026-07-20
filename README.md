@@ -180,3 +180,16 @@ Mechanical Engineering
 High Point University
 
 Developed during the 2026 Summer Undergraduate Research Experience under the mentorship of **Dr. Neil Petroff**.
+
+## License
+
+This project is licensed under the PolyForm Noncommercial License 1.0.0.
+
+This software may be used for academic, educational, research, and other non-commercial purposes in accordance with the LICENSE file included in this repository.
+
+Commercial use of this software requires a separate commercial license from the copyright holder.
+
+For commercial licensing inquiries, please contact:
+
+Jackson Cirami
+<jackson.cirami@gmail.com>
