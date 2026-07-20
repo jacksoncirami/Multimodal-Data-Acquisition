@@ -169,7 +169,7 @@ Use the scripts in [`data_processing/`](data_processing/) to:
 
 ## Project Scope
 
-This repository documents the acquisition and processing infrastructure developed for a multimodal balance-research. It is intended to support adaptation, troubleshooting, and future development across changing vendor software and hardware environments.
+This repository documents the acquisition and processing infrastructure developed for multimodal balance research. It is intended to support adaptation, troubleshooting, and future development across changing vendor software and hardware environments.
 
 The scripts are research tools and should be independently validated for each laboratory configuration before they are used for formal data collection or analysis.
 
@@ -179,17 +179,21 @@ The scripts are research tools and should be independently validated for each la
 Mechanical Engineering  
 High Point University
 
-Developed during the 2026 Summer Undergraduate Research Experience under the mentorship of **Dr. Neil Petroff**.
+Developed during the 2026 Summer Undergraduate Research Experience at High Point University under the mentorship of Dr. Neil Petroff.
+
+## Copyright
+
+Copyright (c) 2026 Jackson Cirami. All rights reserved.
 
 ## License
 
-This project is licensed under the PolyForm Noncommercial License 1.0.0.
+This project is licensed under the PolyForm Noncommercial License 1.0.0. See the [LICENSE](LICENSE) file for the complete license text.
 
-The software may be used for academic, educational, research, and other non-commercial purposes in accordance with the LICENSE file included in this repository.
+The software may be used for academic, educational, research, and other non-commercial purposes in accordance with that license.
 
 Commercial use—including incorporation into commercial software, products, consulting services, or other revenue-generating activities—requires a separate commercial license from the copyright holder.
 
 For commercial licensing inquiries, please contact:
 
 Jackson Cirami  
-<jackson.cirami@gmail.com>
+jackson.cirami@gmail.com
